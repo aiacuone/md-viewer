@@ -55,11 +55,19 @@ export type AddRepoInput = {
 	name?: string;
 	contentRoot?: string;
 	token?: string;
+	/** Copy token from an existing repo (server-side only) */
+	tokenFromRepoId?: string;
 	defaultBranch?: string;
 };
 
 export async function addRepoMeta(input: AddRepoInput): Promise<RepoMeta> {
 	const repos = await readAll();
+	let token = input.token?.trim() || undefined;
+	if (!token && input.tokenFromRepoId) {
+		const source = repos.find((r) => r.id === input.tokenFromRepoId);
+		if (!source?.token) throw new Error('Selected repository has no token to reuse');
+		token = source.token;
+	}
 	const id = randomUUID();
 	const meta: RepoMeta = {
 		id,
@@ -69,7 +77,7 @@ export async function addRepoMeta(input: AddRepoInput): Promise<RepoMeta> {
 		contentRoot: normalizeContentRoot(input.contentRoot),
 		createdAt: new Date().toISOString(),
 		lastSyncedAt: null,
-		token: input.token?.trim() || undefined
+		token
 	};
 	repos.push(meta);
 	await writeAll(repos);

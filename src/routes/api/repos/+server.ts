@@ -22,6 +22,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		name: body.name,
 		contentRoot: body.contentRoot,
 		token: body.token,
+		tokenFromRepoId: body.tokenFromRepoId,
 		defaultBranch: body.defaultBranch
 	});
 
