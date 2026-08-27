@@ -43,13 +43,14 @@
 						'&': {
 							height: '100%',
 							width: '100%',
-							fontSize: '14px',
+							fontSize: '12px',
 							backgroundColor: '#0a0c10',
 							color: '#e8eaef'
 						},
 						'.cm-content': {
 							fontFamily: 'var(--font-mono)',
-							caretColor: '#7eb6ff'
+							caretColor: '#7eb6ff',
+							letterSpacing: '-0.02em'
 						},
 						'.cm-cursor, .cm-dropCursor': {
 							borderLeftColor: '#7eb6ff',

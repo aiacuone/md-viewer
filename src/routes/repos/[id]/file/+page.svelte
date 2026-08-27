@@ -341,19 +341,51 @@
 	.preview {
 		overflow: auto;
 		min-height: min(70vh, 720px);
-		line-height: 1.55;
+		font-size: 0.85rem;
+		line-height: 1.5;
+		letter-spacing: -0.015em;
+		padding: 0.85rem 0.95rem;
+	}
+
+	.preview :global(h1) {
+		font-size: 1.45em;
+		margin: 0.85em 0 0.4em;
+	}
+
+	.preview :global(h2) {
+		font-size: 1.25em;
+		margin: 0.85em 0 0.35em;
+	}
+
+	.preview :global(h3) {
+		font-size: 1.1em;
+		margin: 0.75em 0 0.3em;
+	}
+
+	.preview :global(h4),
+	.preview :global(h5),
+	.preview :global(h6) {
+		font-size: 1em;
+		margin: 0.7em 0 0.3em;
+	}
+
+	.preview :global(p),
+	.preview :global(ul),
+	.preview :global(ol) {
+		margin: 0.55em 0;
 	}
 
 	.preview :global(pre) {
 		overflow: auto;
 		background: var(--bg);
-		padding: 0.75rem;
+		padding: 0.65rem;
 		border-radius: 8px;
+		font-size: 0.92em;
 	}
 
 	.preview :global(code) {
 		font-family: var(--font-mono);
-		font-size: 0.9em;
+		font-size: 0.88em;
 	}
 
 	.diff-panel {
