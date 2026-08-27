@@ -103,6 +103,22 @@ label {
 	margin-bottom: 1.5rem;
 }
 
+@media (min-width: 768px) {
+	.mobile-only {
+		display: none !important;
+	}
+}
+
+@media (max-width: 767px) {
+	.desktop-only {
+		display: none !important;
+	}
+
+	.shell {
+		padding-bottom: max(3rem, env(safe-area-inset-bottom));
+	}
+}
+
 .brand {
 	font-size: 1.35rem;
 	font-weight: 700;

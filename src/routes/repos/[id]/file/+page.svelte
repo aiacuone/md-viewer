@@ -21,9 +21,12 @@
 	let saving = $state(false);
 	let errorMsg = $state('');
 	let commitOpen = $state(false);
+	let syncOpen = $state(false);
 
 	const dirty = $derived(content !== savedContent);
 	const html = $derived(marked.parse(stripFrontMatter(content), { async: false }) as string);
+	const backHref = $derived(`/repos/${data.repo.id}`);
+	const fileTitle = $derived(displayName(data.path.split('/').pop() ?? data.path));
 
 	const unsavedDiff = $derived.by((): DiffFile | null => {
 		if (content === savedContent) return null;
@@ -116,14 +119,18 @@
 
 <svelte:window onbeforeunload={onBeforeUnload} />
 
-<section class="stack">
+<section class="stack file-page">
 	<div class="header-row">
 		<div>
-			<BackLink href={`/repos/${data.repo.id}`} label={data.repo.name} />
-			<h1>{displayName(data.path.split('/').pop() ?? data.path)}</h1>
+			<div class="desktop-only">
+				<BackLink href={backHref} label={data.repo.name} />
+			</div>
+			<h1>{fileTitle}</h1>
 			<p class="muted">
 				{#if dirty}Unsaved buffer{:else}Saved to working tree{/if}
-				{#if viewMode === 'edit'}· Cmd/Ctrl+S to save{/if}
+				<span class="desktop-only">
+					{#if viewMode === 'edit'}· Cmd/Ctrl+S to save{/if}
+				</span>
 			</p>
 		</div>
 		<SyncBar
@@ -131,10 +138,12 @@
 			status={data.status}
 			onRefresh={refresh}
 			onCommit={() => (commitOpen = true)}
+			bind:open={syncOpen}
+			triggerClass="desktop-only"
 		/>
 	</div>
 
-	<div class="row">
+	<div class="row desktop-only">
 		<button class="primary" type="button" disabled={saving || !dirty} onclick={save}>
 			{saving ? 'Saving…' : 'Save'}
 		</button>
@@ -216,6 +225,43 @@
 	</div>
 </section>
 
+<nav class="action-bar mobile-only" aria-label="File actions">
+	<a class="action-back" href={backHref} aria-label="Back to {data.repo.name}">
+		<svg viewBox="0 0 14 14" aria-hidden="true">
+			<path
+				d="M8.75 2.25 3.5 7l5.25 4.75"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.75"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			/>
+		</svg>
+	</a>
+	<div class="view-toggle" role="group" aria-label="View mode">
+		<button
+			type="button"
+			class:active={viewMode === 'preview'}
+			onclick={() => (viewMode = 'preview')}
+		>
+			Preview
+		</button>
+		<button
+			type="button"
+			class:active={viewMode === 'edit'}
+			onclick={() => (viewMode = 'edit')}
+		>
+			Edit
+		</button>
+	</div>
+	<button class="primary action-save" type="button" disabled={saving || !dirty} onclick={save}>
+		{saving ? '…' : 'Save'}
+		{#if dirty && !saving}<span class="dirty-dot" aria-hidden="true"></span>{/if}
+	</button>
+	<button type="button" onclick={() => (syncOpen = true)}>Sync</button>
+	<button type="button" onclick={toggleDiff}>{showDiff ? 'Hide' : 'Diff'}</button>
+</nav>
+
 <CommitModal repoId={data.repo.id} bind:open={commitOpen} onCommitted={refresh} />
 
 <style>
@@ -235,6 +281,9 @@
 
 	.pane {
 		min-height: min(70vh, 720px);
+		min-width: 0;
+		max-width: 100%;
+		overflow-x: hidden;
 	}
 
 	.view-toggle {
@@ -286,5 +335,84 @@
 	.diff-note {
 		margin: 0;
 		font-size: 0.85rem;
+	}
+
+	.action-bar {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 40;
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.55rem 0.65rem calc(0.55rem + env(safe-area-inset-bottom));
+		background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+		border-top: 1px solid var(--border);
+		backdrop-filter: blur(10px);
+		box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+	}
+
+	.action-bar .view-toggle {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	.action-bar .view-toggle button {
+		flex: 1;
+		padding: 0.5rem 0.35rem;
+		font-size: 0.85rem;
+	}
+
+	.action-bar > button,
+	.action-back {
+		flex: 0 0 auto;
+		padding: 0.5rem 0.55rem;
+		font-size: 0.85rem;
+	}
+
+	.action-back {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.4rem;
+		height: 2.4rem;
+		padding: 0;
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		background: var(--bg-soft);
+		color: var(--ink);
+		text-decoration: none;
+	}
+
+	.action-back:hover {
+		text-decoration: none;
+		color: var(--ink);
+	}
+
+	.action-back svg {
+		width: 0.95rem;
+		height: 0.95rem;
+	}
+
+	.action-save {
+		position: relative;
+		min-width: 3.4rem;
+	}
+
+	.dirty-dot {
+		position: absolute;
+		top: 0.3rem;
+		right: 0.3rem;
+		width: 0.4rem;
+		height: 0.4rem;
+		border-radius: 50%;
+		background: var(--accent-ink);
+	}
+
+	@media (max-width: 767px) {
+		.file-page {
+			padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+		}
 	}
 </style>

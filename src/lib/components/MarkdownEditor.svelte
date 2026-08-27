@@ -27,6 +27,7 @@
 				extensions: [
 					basicSetup,
 					markdown(),
+					EditorView.lineWrapping,
 					keymap.of([
 						...defaultKeymap,
 						...historyKeymap,
@@ -41,6 +42,7 @@
 					EditorView.theme({
 						'&': {
 							height: '100%',
+							width: '100%',
 							fontSize: '14px',
 							backgroundColor: '#0a0c10',
 							color: '#e8eaef'
@@ -98,6 +100,9 @@
 <style>
 	.editor {
 		height: min(70vh, 720px);
+		width: 100%;
+		max-width: 100%;
+		min-width: 0;
 		border: 1px solid var(--border);
 		border-radius: 8px;
 		overflow: hidden;
@@ -105,5 +110,6 @@
 
 	.editor :global(.cm-editor) {
 		height: 100%;
+		max-width: 100%;
 	}
 </style>

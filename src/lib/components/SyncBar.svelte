@@ -5,15 +5,20 @@
 		repoId,
 		status,
 		onRefresh,
-		onCommit
+		onCommit,
+		open = $bindable(false),
+		showTrigger = true,
+		triggerClass = ''
 	}: {
 		repoId: string;
 		status: SyncStatus | null;
 		onRefresh: () => void | Promise<void>;
 		onCommit: () => void;
+		open?: boolean;
+		showTrigger?: boolean;
+		triggerClass?: string;
 	} = $props();
 
-	let open = $state(false);
 	let busy = $state<'pull' | null>(null);
 	let errorMsg = $state('');
 
@@ -55,10 +60,12 @@
 	}
 </script>
 
-<button type="button" class="sync-trigger" onclick={() => (open = true)}>
-	Sync
-	<span class="muted">{label}</span>
-</button>
+{#if showTrigger}
+	<button type="button" class="sync-trigger {triggerClass}" onclick={() => (open = true)}>
+		Sync
+		<span class="muted">{label}</span>
+	</button>
+{/if}
 
 {#if open}
 	<div
