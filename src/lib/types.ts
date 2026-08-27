@@ -17,6 +17,8 @@ export type RepoPublic = Omit<RepoMeta, 'token'> & {
 export type AppSettings = {
 	authorName: string;
 	authorEmail: string;
+	/** Repo opened automatically from home; null = show list when multiple */
+	defaultRepoId: string | null;
 };
 
 export type TreeEntry = {

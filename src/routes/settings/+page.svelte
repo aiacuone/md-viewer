@@ -1,19 +1,20 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { browser } from '$app/environment';
+
+	let { data } = $props();
 
 	let authorName = $state('');
 	let authorEmail = $state('');
+	let defaultRepoId = $state('');
 	let busy = $state(false);
 	let saved = $state(false);
 	let errorMsg = $state('');
 
-	onMount(async () => {
-		const res = await fetch('/api/settings');
-		const body = await res.json();
-		authorName = body.authorName ?? '';
-		authorEmail = body.authorEmail ?? '';
+	$effect(() => {
+		authorName = data.settings.authorName ?? '';
+		authorEmail = data.settings.authorEmail ?? '';
+		defaultRepoId = data.settings.defaultRepoId ?? '';
 	});
 
 	function goBack() {
@@ -33,13 +34,19 @@
 			const res = await fetch('/api/settings', {
 				method: 'PUT',
 				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ authorName, authorEmail })
+				body: JSON.stringify({
+					authorName,
+					authorEmail,
+					defaultRepoId: defaultRepoId || null
+				})
 			});
 			const body = await res.json();
 			if (!res.ok) throw new Error(body.message || 'Failed to save settings');
 			authorName = body.authorName;
 			authorEmail = body.authorEmail;
+			defaultRepoId = body.defaultRepoId ?? '';
 			saved = true;
+			await invalidateAll();
 		} catch (err) {
 			errorMsg = err instanceof Error ? err.message : 'Failed to save settings';
 		} finally {
@@ -52,7 +59,7 @@
 	<div>
 		<button type="button" class="back muted" onclick={goBack}>← Back</button>
 		<h1>Settings</h1>
-		<p class="muted">Used as the git author for commits.</p>
+		<p class="muted">Git author and which repo opens by default.</p>
 	</div>
 
 	<form class="card stack" onsubmit={submit}>
@@ -64,6 +71,18 @@
 			Author email
 			<input bind:value={authorEmail} type="email" required />
 		</label>
+		<label>
+			Default repository
+			<select bind:value={defaultRepoId}>
+				<option value="">None — show repository list</option>
+				{#each data.repos as repo}
+					<option value={repo.id}>{repo.name}</option>
+				{/each}
+			</select>
+		</label>
+		{#if data.repos.length === 1}
+			<p class="muted hint">With only one repo, it is always used as the default.</p>
+		{/if}
 		{#if errorMsg}
 			<p class="error">{errorMsg}</p>
 		{/if}
@@ -92,5 +111,10 @@
 
 	h1 {
 		margin: 0 0 0.35rem;
+	}
+
+	.hint {
+		margin: 0;
+		font-size: 0.85rem;
 	}
 </style>

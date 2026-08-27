@@ -31,6 +31,14 @@ export const POST: RequestHandler = async ({ request }) => {
 			defaultBranch: meta.defaultBranch,
 			lastSyncedAt: new Date().toISOString()
 		});
+
+		const repos = await listRepos();
+		if (repos.length === 1) {
+			const { getSettings, saveSettings } = await import('$lib/server/settings');
+			const settings = await getSettings();
+			await saveSettings({ ...settings, defaultRepoId: updated.id });
+		}
+
 		return json(toPublic(updated), { status: 201 });
 	} catch (err) {
 		await rollbackAdd(meta.id);

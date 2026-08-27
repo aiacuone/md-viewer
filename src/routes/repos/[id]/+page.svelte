@@ -31,7 +31,7 @@
 <section class="stack">
 	<div class="header-row">
 		<div>
-			<a class="muted" href="/">← All repos</a>
+			<a class="muted" href="/?list=1">← All repos</a>
 			<h1>{data.repo.name}</h1>
 			<p class="muted">
 				{data.repo.remoteUrl}

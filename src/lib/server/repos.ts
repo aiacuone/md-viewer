@@ -91,6 +91,17 @@ export async function removeRepo(id: string): Promise<void> {
 	if (next.length === repos.length) throw new Error('Repository not found');
 	await writeAll(next);
 	await rm(repoDir(id), { recursive: true, force: true });
+
+	const { getSettings, saveSettings } = await import('./settings');
+	const settings = await getSettings();
+	if (settings.defaultRepoId === id) {
+		await saveSettings({
+			...settings,
+			defaultRepoId: next.length === 1 ? next[0].id : null
+		});
+	} else if (next.length === 1 && settings.defaultRepoId !== next[0].id) {
+		await saveSettings({ ...settings, defaultRepoId: next[0].id });
+	}
 }
 
 export async function rollbackAdd(id: string): Promise<void> {
