@@ -5,6 +5,7 @@
 	import SyncBar from '$lib/components/SyncBar.svelte';
 	import CommitModal from '$lib/components/CommitModal.svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
+	import BackLink from '$lib/components/BackLink.svelte';
 	import type { DiffFile } from '$lib/types';
 	import { displayName } from '$lib/display';
 	import { unifiedDiff } from '$lib/diff';
@@ -117,7 +118,7 @@
 <section class="stack">
 	<div class="header-row">
 		<div>
-			<a class="muted" href={`/repos/${data.repo.id}`}>← {data.repo.name}</a>
+			<BackLink href={`/repos/${data.repo.id}`} label={data.repo.name} />
 			<h1>{displayName(data.path.split('/').pop() ?? data.path)}</h1>
 			<p class="muted">
 				{#if dirty}Unsaved buffer{:else}Saved to working tree{/if}

@@ -1,15 +1,25 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
+	import type { RepoPublic } from '$lib/types';
 
 	let { data } = $props();
 	let busyId = $state<string | null>(null);
 	let defaultBusy = $state(false);
 	let errorMsg = $state('');
 	let defaultRepoId = $state<string | null>(null);
+	let detailsRepo = $state<RepoPublic | null>(null);
 
 	$effect(() => {
 		defaultRepoId = data.defaultRepoId;
 	});
+
+	function openDetails(repo: RepoPublic) {
+		detailsRepo = repo;
+	}
+
+	function closeDetails() {
+		detailsRepo = null;
+	}
 
 	async function removeRepo(id: string, name: string) {
 		const ok = confirm(
@@ -24,6 +34,7 @@
 				const body = await res.json().catch(() => ({}));
 				throw new Error(body.message || 'Failed to remove repo');
 			}
+			detailsRepo = null;
 			await invalidateAll();
 		} catch (err) {
 			errorMsg = err instanceof Error ? err.message : 'Failed to remove repo';
@@ -112,35 +123,72 @@
 								<span class="tag">default</span>
 							{/if}
 						</strong>
-						<span class="muted">{repo.remoteUrl}</span>
-						{#if repo.contentRoot}
-							<span class="tag">root: {repo.contentRoot}</span>
-						{/if}
 					</button>
-					<div class="actions">
-						{#if data.repos.length > 1 && defaultRepoId !== repo.id}
-							<button
-								type="button"
-								disabled={defaultBusy}
-								onclick={() => setDefault(repo.id)}
-							>
-								Set default
-							</button>
-						{/if}
-						<button
-							class="danger"
-							type="button"
-							disabled={busyId === repo.id}
-							onclick={() => removeRepo(repo.id, repo.name)}
-						>
-							{busyId === repo.id ? 'Removing…' : 'Remove'}
-						</button>
-					</div>
+					<button
+						type="button"
+						class="details-btn"
+						onclick={() => openDetails(repo)}
+						aria-label={`Details for ${repo.name}`}
+						title="Details"
+					>
+						<span aria-hidden="true">⋮</span>
+					</button>
 				</article>
 			{/each}
 		</div>
 	{/if}
 </section>
+
+{#if detailsRepo}
+	<div
+		class="backdrop"
+		role="button"
+		tabindex="0"
+		onclick={closeDetails}
+		onkeydown={(e) => (e.key === 'Escape' || e.key === 'Enter') && closeDetails()}
+	>
+		<div
+			class="dialog card stack"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="repo-details-title"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+		>
+			<div class="dialog-head">
+				<h2 id="repo-details-title">{detailsRepo.name}</h2>
+				<button type="button" class="close" onclick={closeDetails}>Close</button>
+			</div>
+			<div class="meta">
+				<p class="muted label">Remote URL</p>
+				<p class="url">{detailsRepo.remoteUrl}</p>
+				{#if detailsRepo.contentRoot}
+					<p class="muted label">Content root</p>
+					<p><code>{detailsRepo.contentRoot}</code></p>
+				{/if}
+			</div>
+			<div class="row dialog-actions">
+				{#if data.repos.length > 1 && defaultRepoId !== detailsRepo.id}
+					<button
+						type="button"
+						disabled={defaultBusy}
+						onclick={() => setDefault(detailsRepo!.id)}
+					>
+						Set default
+					</button>
+				{/if}
+				<button
+					class="danger compact"
+					type="button"
+					disabled={busyId === detailsRepo.id}
+					onclick={() => removeRepo(detailsRepo!.id, detailsRepo!.name)}
+				>
+					{busyId === detailsRepo.id ? 'Removing…' : 'Remove'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	h1 {
@@ -185,11 +233,21 @@
 		gap: 0.4rem;
 	}
 
-	.actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		justify-content: flex-end;
+	.details-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		padding: 0;
+		font-size: 1.25rem;
+		line-height: 1;
+		letter-spacing: 0;
+		color: var(--ink-muted);
+	}
+
+	.details-btn:hover {
+		color: var(--ink);
 	}
 
 	.tag {
@@ -207,13 +265,72 @@
 		text-decoration: none;
 	}
 
+	.backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.55);
+		display: grid;
+		place-items: center;
+		padding: 1rem;
+		z-index: 50;
+	}
+
+	.dialog {
+		width: min(440px, 100%);
+	}
+
+	.dialog-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
+	.dialog-head h2 {
+		margin: 0;
+		font-size: 1.2rem;
+	}
+
+	.close {
+		padding: 0.35rem 0.65rem;
+		font-size: 0.85rem;
+	}
+
+	.meta {
+		display: grid;
+		gap: 0.35rem;
+	}
+
+	.meta .label {
+		margin: 0.5rem 0 0;
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.meta .label:first-child {
+		margin-top: 0;
+	}
+
+	.url {
+		margin: 0;
+		word-break: break-all;
+		font-family: var(--font-mono);
+		font-size: 0.9rem;
+	}
+
+	.dialog-actions {
+		justify-content: flex-end;
+	}
+
+	.dialog-actions .compact {
+		padding: 0.3rem 0.6rem;
+		font-size: 0.8rem;
+	}
+
 	@media (max-width: 640px) {
 		.repo {
-			grid-template-columns: 1fr;
-		}
-
-		.actions {
-			justify-content: flex-start;
+			grid-template-columns: 1fr auto;
 		}
 	}
 </style>

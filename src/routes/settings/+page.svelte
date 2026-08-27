@@ -57,7 +57,19 @@
 
 <section class="stack" style="max-width: 520px">
 	<div>
-		<button type="button" class="back muted" onclick={goBack}>← Back</button>
+		<button type="button" class="back-link" onclick={goBack}>
+			<svg viewBox="0 0 14 14" aria-hidden="true">
+				<path
+					d="M8.75 2.25 3.5 7l5.25 4.75"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.75"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+			</svg>
+			Back
+		</button>
 		<h1>Settings</h1>
 		<p class="muted">Git author and which repo opens by default.</p>
 	</div>
@@ -94,19 +106,8 @@
 </section>
 
 <style>
-	.back {
-		display: inline-block;
+	.back-link {
 		margin-bottom: 0.35rem;
-		background: none;
-		border: none;
-		padding: 0;
-		cursor: pointer;
-		font: inherit;
-		text-align: left;
-	}
-
-	.back:hover {
-		text-decoration: underline;
 	}
 
 	h1 {

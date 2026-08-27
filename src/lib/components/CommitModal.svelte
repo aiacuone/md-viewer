@@ -155,7 +155,7 @@
 					disabled={committing || diffs.length === 0}
 					onclick={commit}
 				>
-					{committing ? 'Committing…' : 'Commit all changes'}
+					{committing ? 'Committing + pushing…' : 'Commit + push'}
 				</button>
 			</div>
 		</div>

@@ -26,10 +26,7 @@ html,
 body {
 	margin: 0;
 	min-height: 100%;
-	background:
-		radial-gradient(1100px 520px at 8% -8%, #1a2233 0%, transparent 55%),
-		radial-gradient(900px 480px at 100% 0%, #1c1a28 0%, transparent 48%),
-		var(--bg);
+	background: var(--bg);
 	color: var(--ink);
 	font-family: var(--font-sans);
 }
@@ -146,4 +143,30 @@ label {
 	gap: 0.6rem;
 	flex-wrap: wrap;
 	align-items: center;
+}
+
+.back-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	line-height: 1;
+	text-decoration: none;
+	background: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	font: inherit;
+	color: var(--ink-muted);
+}
+
+.back-link:hover {
+	color: var(--ink-muted);
+	text-decoration: none;
+}
+
+.back-link svg {
+	flex-shrink: 0;
+	width: 0.85em;
+	height: 0.85em;
+	display: block;
 }

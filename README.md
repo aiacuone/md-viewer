@@ -7,7 +7,7 @@ SvelteKit PWA for browsing and editing markdown files in git repositories.
 - Add / remove HTTPS git remotes (optional content root for monorepos)
 - Browse folders and open `.md` files
 - Edit with CodeMirror, preview with marked
-- Save → Commit (with diffs) → Push; Pull separately
+- Save → Commit + push (with diffs); Pull separately
 - PAT stored server-side per repo
 
 ## Setup

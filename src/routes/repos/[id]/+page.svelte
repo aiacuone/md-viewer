@@ -2,6 +2,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import SyncBar from '$lib/components/SyncBar.svelte';
 	import CommitModal from '$lib/components/CommitModal.svelte';
+	import BackLink from '$lib/components/BackLink.svelte';
 	import { displayName } from '$lib/display';
 
 	let { data } = $props();
@@ -31,14 +32,11 @@
 <section class="stack">
 	<div class="header-row">
 		<div>
-			<a class="muted" href="/?list=1">← All repos</a>
+			<BackLink href="/?list=1" label="Repos" />
 			<h1>{data.repo.name}</h1>
-			<p class="muted">
-				{data.repo.remoteUrl}
-				{#if data.repo.contentRoot}
-					· content root <code>{data.repo.contentRoot}</code>
-				{/if}
-			</p>
+			{#if data.repo.contentRoot}
+				<p class="muted">content root <code>{data.repo.contentRoot}</code></p>
+			{/if}
 		</div>
 		<SyncBar
 			repoId={data.repo.id}

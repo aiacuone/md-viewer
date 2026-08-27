@@ -14,8 +14,10 @@
 	} = $props();
 
 	let open = $state(false);
-	let busy = $state<'pull' | 'push' | null>(null);
+	let busy = $state<'pull' | null>(null);
 	let errorMsg = $state('');
+
+	const canCommit = $derived(!!status && status.uncommitted.length > 0);
 
 	const label = $derived.by(() => {
 		if (!status) return 'Loading…';
@@ -37,21 +39,6 @@
 			await onRefresh();
 		} catch (err) {
 			errorMsg = err instanceof Error ? err.message : 'Pull failed';
-		} finally {
-			busy = null;
-		}
-	}
-
-	async function push() {
-		busy = 'push';
-		errorMsg = '';
-		try {
-			const res = await fetch(`/api/repos/${repoId}/push`, { method: 'POST' });
-			const body = await res.json().catch(() => ({}));
-			if (!res.ok) throw new Error(body.message || 'Push failed');
-			await onRefresh();
-		} catch (err) {
-			errorMsg = err instanceof Error ? err.message : 'Push failed';
 		} finally {
 			busy = null;
 		}
@@ -100,9 +87,13 @@
 				<button type="button" disabled={busy !== null} onclick={pull}>
 					{busy === 'pull' ? 'Pulling…' : 'Pull'}
 				</button>
-				<button type="button" disabled={busy !== null} onclick={openCommit}>Commit</button>
-				<button class="primary" type="button" disabled={busy !== null} onclick={push}>
-					{busy === 'push' ? 'Pushing…' : 'Push'}
+				<button
+					class="primary"
+					type="button"
+					disabled={busy !== null || !canCommit}
+					onclick={openCommit}
+				>
+					Commit + push
 				</button>
 			</div>
 

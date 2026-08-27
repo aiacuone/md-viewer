@@ -17,8 +17,8 @@
 	<header class="topbar">
 		<a class="brand" href="/">MD Viewer</a>
 		<nav class="row">
-			<a href="/?list=1">All repos</a>
-			<a href="/repos/new">Add repo</a>
+			<a href="/?list=1">Repos</a>
+			<a href="/repos/new">Add</a>
 			<a href="/settings">Settings</a>
 		</nav>
 	</header>
