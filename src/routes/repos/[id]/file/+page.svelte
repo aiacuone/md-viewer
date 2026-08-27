@@ -347,26 +347,36 @@
 		padding: 0.85rem 0.95rem;
 	}
 
+	.preview :global(h1),
+	.preview :global(h2),
+	.preview :global(h3),
+	.preview :global(h4),
+	.preview :global(h5),
+	.preview :global(h6) {
+		line-height: 1.2;
+		letter-spacing: -0.025em;
+	}
+
 	.preview :global(h1) {
 		font-size: 1.45em;
-		margin: 0.85em 0 0.4em;
+		margin: 0.55em 0 0.2em;
 	}
 
 	.preview :global(h2) {
 		font-size: 1.25em;
-		margin: 0.85em 0 0.35em;
+		margin: 0.55em 0 0.18em;
 	}
 
 	.preview :global(h3) {
 		font-size: 1.1em;
-		margin: 0.75em 0 0.3em;
+		margin: 0.5em 0 0.15em;
 	}
 
 	.preview :global(h4),
 	.preview :global(h5),
 	.preview :global(h6) {
 		font-size: 1em;
-		margin: 0.7em 0 0.3em;
+		margin: 0.45em 0 0.15em;
 	}
 
 	.preview :global(p),
