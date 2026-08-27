@@ -25,7 +25,20 @@
 
 	const dirty = $derived(content !== savedContent);
 	const html = $derived(marked.parse(stripFrontMatter(content), { async: false }) as string);
-	const backHref = $derived(`/repos/${data.repo.id}`);
+	const parentPath = $derived.by(() => {
+		const parts = data.path.split('/').filter(Boolean);
+		parts.pop();
+		return parts.join('/');
+	});
+	const backHref = $derived.by(() => {
+		const base = `/repos/${data.repo.id}`;
+		return parentPath ? `${base}?path=${encodeURIComponent(parentPath)}` : base;
+	});
+	const backLabel = $derived(
+		parentPath
+			? displayName(parentPath.split('/').pop() ?? parentPath)
+			: data.repo.name
+	);
 	const fileTitle = $derived(displayName(data.path.split('/').pop() ?? data.path));
 
 	const unsavedDiff = $derived.by((): DiffFile | null => {
@@ -123,7 +136,7 @@
 	<div class="header-row">
 		<div>
 			<div class="desktop-only">
-				<BackLink href={backHref} label={data.repo.name} />
+				<BackLink href={backHref} label={backLabel} />
 			</div>
 			<h1>{fileTitle}</h1>
 			<p class="muted">
@@ -226,7 +239,7 @@
 </section>
 
 <nav class="action-bar mobile-only" aria-label="File actions">
-	<a class="action-back" href={backHref} aria-label="Back to {data.repo.name}">
+	<a class="action-back" href={backHref} aria-label="Back to {backLabel}">
 		<svg viewBox="0 0 14 14" aria-hidden="true">
 			<path
 				d="M8.75 2.25 3.5 7l5.25 4.75"
