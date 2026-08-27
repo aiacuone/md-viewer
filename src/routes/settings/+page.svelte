@@ -6,7 +6,6 @@
 
 	let authorName = $state('');
 	let authorEmail = $state('');
-	let defaultRepoId = $state('');
 	let busy = $state(false);
 	let saved = $state(false);
 	let errorMsg = $state('');
@@ -14,7 +13,6 @@
 	$effect(() => {
 		authorName = data.settings.authorName ?? '';
 		authorEmail = data.settings.authorEmail ?? '';
-		defaultRepoId = data.settings.defaultRepoId ?? '';
 	});
 
 	function goBack() {
@@ -37,14 +35,13 @@
 				body: JSON.stringify({
 					authorName,
 					authorEmail,
-					defaultRepoId: defaultRepoId || null
+					defaultRepoId: data.settings.defaultRepoId ?? null
 				})
 			});
 			const body = await res.json();
 			if (!res.ok) throw new Error(body.message || 'Failed to save settings');
 			authorName = body.authorName;
 			authorEmail = body.authorEmail;
-			defaultRepoId = body.defaultRepoId ?? '';
 			saved = true;
 			await invalidateAll();
 		} catch (err) {
@@ -71,7 +68,7 @@
 			Back
 		</button>
 		<h1>Settings</h1>
-		<p class="muted">Git author and which repo opens by default.</p>
+		<p class="muted">Git author used for commits.</p>
 	</div>
 
 	<form class="card stack" onsubmit={submit}>
@@ -83,18 +80,6 @@
 			Author email
 			<input bind:value={authorEmail} type="email" required />
 		</label>
-		<label>
-			Default repository
-			<select bind:value={defaultRepoId}>
-				<option value="">None — show repository list</option>
-				{#each data.repos as repo}
-					<option value={repo.id}>{repo.name}</option>
-				{/each}
-			</select>
-		</label>
-		{#if data.repos.length === 1}
-			<p class="muted hint">With only one repo, it is always used as the default.</p>
-		{/if}
 		{#if errorMsg}
 			<p class="error">{errorMsg}</p>
 		{/if}
@@ -112,10 +97,5 @@
 
 	h1 {
 		margin: 0 0 0.35rem;
-	}
-
-	.hint {
-		margin: 0;
-		font-size: 0.85rem;
 	}
 </style>

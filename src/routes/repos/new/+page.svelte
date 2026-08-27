@@ -53,6 +53,15 @@
 			busy = false;
 		}
 	}
+	async function pasteRemoteUrl() {
+		errorMsg = '';
+		try {
+			const text = await navigator.clipboard.readText();
+			remoteUrl = text.trim();
+		} catch {
+			errorMsg = 'Could not read clipboard';
+		}
+	}
 </script>
 
 <section class="stack" style="max-width: 560px">
@@ -64,7 +73,10 @@
 	<form class="card stack" onsubmit={submit}>
 		<label>
 			Remote URL
-			<input bind:value={remoteUrl} placeholder="https://github.com/you/notes.git" required />
+			<div class="input-with-action">
+				<input bind:value={remoteUrl} placeholder="https://github.com/you/notes.git" required />
+				<button type="button" onclick={pasteRemoteUrl}>Paste</button>
+			</div>
 		</label>
 		<label>
 			Display name <span class="muted">(optional)</span>
@@ -171,5 +183,21 @@
 
 	.nested {
 		margin-left: 1.5rem;
+	}
+
+	.input-with-action {
+		display: flex;
+		gap: 0.5rem;
+		align-items: stretch;
+	}
+
+	.input-with-action input {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.input-with-action button {
+		flex: 0 0 auto;
+		white-space: nowrap;
 	}
 </style>

@@ -91,28 +91,6 @@
 			</div>
 		</div>
 	{:else}
-		{#if data.repos.length > 1}
-			<div class="card stack default-picker">
-				<label>
-					Default repository
-					<select
-						value={defaultRepoId ?? ''}
-						disabled={defaultBusy}
-						onchange={(e) => {
-							const v = (e.currentTarget as HTMLSelectElement).value;
-							void setDefault(v || null);
-						}}
-					>
-						<option value="">None — always show this list</option>
-						{#each data.repos as repo}
-							<option value={repo.id}>{repo.name}</option>
-						{/each}
-					</select>
-				</label>
-				<p class="muted hint">Opening MD Viewer goes straight to the default repo.</p>
-			</div>
-		{/if}
-
 		<div class="repo-list">
 			{#each data.repos as repo}
 				<article class="card repo">
@@ -168,15 +146,13 @@
 				{/if}
 			</div>
 			<div class="row dialog-actions">
-				{#if data.repos.length > 1 && defaultRepoId !== detailsRepo.id}
-					<button
-						type="button"
-						disabled={defaultBusy}
-						onclick={() => setDefault(detailsRepo!.id)}
-					>
-						Set default
-					</button>
-				{/if}
+				<button
+					type="button"
+					disabled={defaultBusy || defaultRepoId === detailsRepo.id}
+					onclick={() => setDefault(detailsRepo!.id)}
+				>
+					{defaultRepoId === detailsRepo.id ? 'Default' : 'Set default'}
+				</button>
 				<button
 					class="danger compact"
 					type="button"
@@ -195,11 +171,6 @@
 		margin: 0 0 0.35rem;
 		font-size: 1.8rem;
 		letter-spacing: -0.03em;
-	}
-
-	.default-picker .hint {
-		margin: 0;
-		font-size: 0.85rem;
 	}
 
 	.repo-list {
