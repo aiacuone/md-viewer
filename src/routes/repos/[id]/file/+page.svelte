@@ -139,12 +139,6 @@
 				<BackLink href={backHref} label={backLabel} />
 			</div>
 			<h1>{fileTitle}</h1>
-			<p class="muted">
-				{#if dirty}Unsaved buffer{:else}Saved to working tree{/if}
-				<span class="desktop-only">
-					{#if viewMode === 'edit'}· Cmd/Ctrl+S to save{/if}
-				</span>
-			</p>
 		</div>
 		<SyncBar
 			repoId={data.repo.id}
@@ -230,6 +224,12 @@
 	{/if}
 
 	<div class="pane">
+		<p class="muted save-status" aria-live="polite">
+			{#if dirty}Unsaved buffer{:else}Saved to working tree{/if}
+			<span class="desktop-only">
+				{#if viewMode === 'edit'} · Cmd/Ctrl+S to save{/if}
+			</span>
+		</p>
 		{#if viewMode === 'edit'}
 			<MarkdownEditor bind:value={content} onSave={save} />
 		{:else}
@@ -293,10 +293,26 @@
 	}
 
 	.pane {
+		position: relative;
 		min-height: min(70vh, 720px);
 		min-width: 0;
 		max-width: 100%;
 		overflow-x: hidden;
+	}
+
+	.save-status {
+		position: absolute;
+		top: 0.55rem;
+		right: 0.7rem;
+		z-index: 2;
+		margin: 0;
+		padding: 0.15rem 0.45rem;
+		font-size: 0.8rem;
+		line-height: 1.3;
+		pointer-events: none;
+		border-radius: 6px;
+		opacity: 0.65;
+		background: color-mix(in srgb, var(--bg-elevated) 75%, transparent);
 	}
 
 	.view-toggle {
@@ -426,6 +442,10 @@
 	@media (max-width: 767px) {
 		.file-page {
 			padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+		}
+
+		h1 {
+			margin-top: 0;
 		}
 	}
 </style>

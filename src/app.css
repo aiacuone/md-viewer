@@ -115,7 +115,11 @@ label {
 	}
 
 	.shell {
-		padding-bottom: max(3rem, env(safe-area-inset-bottom));
+		padding: 0.55rem 1rem max(3rem, env(safe-area-inset-bottom));
+	}
+
+	.topbar {
+		margin-bottom: 0.25rem;
 	}
 }
 
