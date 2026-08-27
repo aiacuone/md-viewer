@@ -3,11 +3,32 @@
 	import SyncBar from '$lib/components/SyncBar.svelte';
 	import CommitModal from '$lib/components/CommitModal.svelte';
 	import BackLink from '$lib/components/BackLink.svelte';
+	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
 	import { displayName } from '$lib/display';
 
 	let { data } = $props();
 	let commitOpen = $state(false);
 	let syncOpen = $state(false);
+	let favourites = $state<string[]>([]);
+	let starBusy = $state<string | null>(null);
+	let starError = $state('');
+
+	$effect(() => {
+		favourites = data.favourites;
+	});
+
+	const favouriteSet = $derived(new Set(favourites));
+
+	const sortedTree = $derived.by(() => {
+		const entries = [...data.tree];
+		entries.sort((a, b) => {
+			const aFav = favouriteSet.has(a.path) ? 0 : 1;
+			const bFav = favouriteSet.has(b.path) ? 0 : 1;
+			if (aFav !== bFav) return aFav - bFav;
+			return 0;
+		});
+		return entries;
+	});
 
 	const crumbs = $derived.by(() => {
 		const parts = data.path ? data.path.split('/').filter(Boolean) : [];
@@ -23,6 +44,26 @@
 	function openPath(path: string) {
 		const q = path ? `?path=${encodeURIComponent(path)}` : '';
 		goto(`/repos/${data.repo.id}${q}`);
+	}
+
+	async function toggleStar(path: string) {
+		starBusy = path;
+		starError = '';
+		try {
+			const res = await fetch(`/api/repos/${data.repo.id}/favourite`, {
+				method: 'PUT',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ path })
+			});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok) throw new Error(body.message || 'Failed to update favourite');
+			favourites = body.favourites ?? [];
+			await invalidateAll();
+		} catch (err) {
+			starError = err instanceof Error ? err.message : 'Failed to update favourite';
+		} finally {
+			starBusy = null;
+		}
 	}
 
 	async function refresh() {
@@ -58,22 +99,35 @@
 		{/each}
 	</nav>
 
+	{#if starError}
+		<p class="error">{starError}</p>
+	{/if}
+
 	<div class="card tree">
-		{#if data.tree.length === 0}
+		{#if sortedTree.length === 0}
 			<p class="muted">No markdown files or folders here.</p>
 		{:else}
 			<ul>
-				{#each data.tree as entry}
-					<li>
+				{#each sortedTree as entry}
+					<li class="row-item">
 						{#if entry.type === 'dir'}
-							<button type="button" onclick={() => openPath(entry.path)}>
-								{entry.name}
+							<button type="button" class="row-main dir" onclick={() => openPath(entry.path)}>
+								<span>{entry.name}<span class="dir-slash">/</span></span>
 							</button>
 						{:else}
-							<a href={`/repos/${data.repo.id}/file?path=${encodeURIComponent(entry.path)}`}>
+							<a
+								class="row-main"
+								href={`/repos/${data.repo.id}/file?path=${encodeURIComponent(entry.path)}`}
+							>
 								{displayName(entry.name)}
 							</a>
 						{/if}
+						<FavouriteStar
+							favourited={favouriteSet.has(entry.path)}
+							busy={starBusy === entry.path}
+							label={displayName(entry.name)}
+							onclick={() => toggleStar(entry.path)}
+						/>
 					</li>
 				{/each}
 			</ul>
@@ -132,13 +186,21 @@
 		padding: 0;
 	}
 
-	.tree li + li {
+	.row-item {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		align-items: center;
+		gap: 0.25rem;
+	}
+
+	.row-item + .row-item {
 		border-top: 1px solid var(--border);
 	}
 
-	.tree a,
-	.tree button {
-		display: block;
+	.row-main {
+		display: grid;
+		gap: 0.1rem;
+		min-width: 0;
 		width: 100%;
 		text-align: left;
 		padding: 0.7rem 0.15rem;
@@ -149,9 +211,17 @@
 		border-radius: 0;
 	}
 
-	.tree a:hover,
-	.tree button:hover {
+	.row-main:hover {
 		color: var(--accent);
+	}
+
+	.row-main.dir {
+		font-weight: 600;
+	}
+
+	.dir-slash {
+		margin-left: 0.35em;
+		color: var(--ink-muted);
 	}
 
 	code {

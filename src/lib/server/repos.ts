@@ -100,7 +100,8 @@ export async function removeRepo(id: string): Promise<void> {
 	await writeAll(next);
 	await rm(repoDir(id), { recursive: true, force: true });
 
-	const { getSettings, saveSettings } = await import('./settings');
+	const { getSettings, saveSettings, clearFavouritesForRepo } = await import('./settings');
+	await clearFavouritesForRepo(id);
 	const settings = await getSettings();
 	if (settings.defaultRepoId === id) {
 		await saveSettings({

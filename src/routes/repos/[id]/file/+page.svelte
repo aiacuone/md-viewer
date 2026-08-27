@@ -5,6 +5,7 @@
 	import CommitModal from '$lib/components/CommitModal.svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
 	import BackLink from '$lib/components/BackLink.svelte';
+	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
 	import type { DiffFile } from '$lib/types';
 	import { displayName } from '$lib/display';
 	import { unifiedDiff } from '$lib/diff';
@@ -21,6 +22,14 @@
 	let errorMsg = $state('');
 	let commitOpen = $state(false);
 	let syncOpen = $state(false);
+	let favourites = $state<string[]>([]);
+	let starBusy = $state(false);
+
+	$effect(() => {
+		favourites = data.favourites;
+	});
+
+	const favourited = $derived(favourites.includes(data.path));
 
 	const dirty = $derived(content !== savedContent);
 	const html = $derived(
@@ -105,6 +114,26 @@
 		await invalidateAll();
 	}
 
+	async function toggleStar() {
+		starBusy = true;
+		errorMsg = '';
+		try {
+			const res = await fetch(`/api/repos/${data.repo.id}/favourite`, {
+				method: 'PUT',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ path: data.path })
+			});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok) throw new Error(body.message || 'Failed to update favourite');
+			favourites = body.favourites ?? [];
+			await invalidateAll();
+		} catch (err) {
+			errorMsg = err instanceof Error ? err.message : 'Failed to update favourite';
+		} finally {
+			starBusy = false;
+		}
+	}
+
 	function applyContent(next: string) {
 		content = next;
 		viewMode = 'edit';
@@ -139,7 +168,15 @@
 			<div class="desktop-only">
 				<BackLink href={backHref} label={backLabel} />
 			</div>
-			<h1>{fileTitle}</h1>
+			<div class="title-row">
+				<h1>{fileTitle}</h1>
+				<FavouriteStar
+					favourited={favourited}
+					busy={starBusy}
+					label={fileTitle}
+					onclick={toggleStar}
+				/>
+			</div>
 		</div>
 		<SyncBar
 			repoId={data.repo.id}
@@ -283,6 +320,18 @@
 		margin: 0.35rem 0;
 		font-size: 1.25rem;
 		word-break: break-all;
+	}
+
+	.title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		min-width: 0;
+	}
+
+	.title-row h1 {
+		min-width: 0;
+		flex: 1 1 auto;
 	}
 
 	.header-row {

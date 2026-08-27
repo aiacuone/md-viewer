@@ -25,7 +25,9 @@ export const PUT: RequestHandler = async ({ request }) => {
 	const saved = await saveSettings({
 		authorName: String(body.authorName ?? current.authorName),
 		authorEmail: String(body.authorEmail ?? current.authorEmail),
-		defaultRepoId
+		defaultRepoId,
+		favouritesByRepo:
+			body.favouritesByRepo !== undefined ? body.favouritesByRepo : current.favouritesByRepo
 	});
 	return json(saved);
 };

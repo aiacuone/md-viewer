@@ -19,6 +19,8 @@ export type AppSettings = {
 	authorEmail: string;
 	/** Repo opened automatically from home; null = show list when multiple */
 	defaultRepoId: string | null;
+	/** Favourited paths (repo-relative) keyed by repo id */
+	favouritesByRepo: Record<string, string[]>;
 };
 
 export type TreeEntry = {
