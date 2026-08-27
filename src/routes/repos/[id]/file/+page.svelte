@@ -302,16 +302,16 @@
 
 	.save-status {
 		position: absolute;
-		top: 0.55rem;
-		right: 0.7rem;
+		top: 0.2rem;
+		right: 0.25rem;
 		z-index: 2;
 		margin: 0;
-		padding: 0.15rem 0.45rem;
-		font-size: 0.8rem;
-		line-height: 1.3;
+		padding: 0.1rem 0.3rem;
+		font-size: 0.65rem;
+		line-height: 1.2;
 		pointer-events: none;
-		border-radius: 6px;
-		opacity: 0.65;
+		border-radius: 4px;
+		opacity: 0.4;
 		background: color-mix(in srgb, var(--bg-elevated) 75%, transparent);
 	}
 
