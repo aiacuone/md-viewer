@@ -9,6 +9,7 @@
 	import type { DiffFile } from '$lib/types';
 	import { displayName } from '$lib/display';
 	import { unifiedDiff } from '$lib/diff';
+	import { stripFrontMatter } from '$lib/markdown';
 
 	let { data } = $props();
 
@@ -22,7 +23,7 @@
 	let commitOpen = $state(false);
 
 	const dirty = $derived(content !== savedContent);
-	const html = $derived(marked.parse(content, { async: false }) as string);
+	const html = $derived(marked.parse(stripFrontMatter(content), { async: false }) as string);
 
 	const unsavedDiff = $derived.by((): DiffFile | null => {
 		if (content === savedContent) return null;
