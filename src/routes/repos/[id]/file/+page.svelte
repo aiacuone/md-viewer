@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { marked } from 'marked';
 	import { invalidateAll } from '$app/navigation';
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
 	import SyncBar from '$lib/components/SyncBar.svelte';
@@ -9,7 +8,7 @@
 	import type { DiffFile } from '$lib/types';
 	import { displayName } from '$lib/display';
 	import { unifiedDiff } from '$lib/diff';
-	import { stripFrontMatter } from '$lib/markdown';
+	import { renderMarkdown } from '$lib/markdown';
 
 	let { data } = $props();
 
@@ -24,7 +23,9 @@
 	let syncOpen = $state(false);
 
 	const dirty = $derived(content !== savedContent);
-	const html = $derived(marked.parse(stripFrontMatter(content), { async: false }) as string);
+	const html = $derived(
+		renderMarkdown(content, { repoId: data.repo.id, filePath: data.path })
+	);
 	const parentPath = $derived.by(() => {
 		const parts = data.path.split('/').filter(Boolean);
 		parts.pop();
