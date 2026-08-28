@@ -5,6 +5,7 @@
 	import BackLink from '$lib/components/BackLink.svelte';
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
 	import { displayName } from '$lib/display';
+	import { goBack } from '$lib/navigation';
 
 	let { data } = $props();
 	let commitOpen = $state(false);
@@ -75,7 +76,7 @@
 	<div class="header-row">
 		<div>
 			<div class="desktop-only">
-				<BackLink href="/?list=1" label="Repos" />
+				<BackLink fallback="/?list=1" />
 			</div>
 			<h1>{data.repo.name}</h1>
 			{#if data.repo.contentRoot}
@@ -136,7 +137,7 @@
 </section>
 
 <nav class="action-bar mobile-only" aria-label="Browse actions">
-	<a class="action-back" href="/?list=1" aria-label="Back to Repos">
+	<button type="button" class="action-back" onclick={() => goBack('/?list=1')} aria-label="Back">
 		<svg viewBox="0 0 14 14" aria-hidden="true">
 			<path
 				d="M8.75 2.25 3.5 7l5.25 4.75"
@@ -147,7 +148,7 @@
 				stroke-linejoin="round"
 			/>
 		</svg>
-	</a>
+	</button>
 	<div class="action-crumbs" aria-label="Breadcrumb">
 		{#each crumbs as c, i}
 			{#if i > 0}<span class="muted crumb-sep">/</span>{/if}

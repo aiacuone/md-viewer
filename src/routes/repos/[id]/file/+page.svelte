@@ -8,6 +8,7 @@
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
 	import type { DiffFile } from '$lib/types';
 	import { displayName } from '$lib/display';
+	import { goBack } from '$lib/navigation';
 	import { unifiedDiff } from '$lib/diff';
 	import { renderMarkdown } from '$lib/markdown';
 
@@ -35,21 +36,8 @@
 	const html = $derived(
 		renderMarkdown(content, { repoId: data.repo.id, filePath: data.path })
 	);
-	const parentPath = $derived.by(() => {
-		const parts = data.path.split('/').filter(Boolean);
-		parts.pop();
-		return parts.join('/');
-	});
-	const backHref = $derived.by(() => {
-		const base = `/repos/${data.repo.id}`;
-		return parentPath ? `${base}?path=${encodeURIComponent(parentPath)}` : base;
-	});
-	const backLabel = $derived(
-		parentPath
-			? displayName(parentPath.split('/').pop() ?? parentPath)
-			: data.repo.name
-	);
 	const fileTitle = $derived(displayName(data.path.split('/').pop() ?? data.path));
+	const repoHref = $derived(`/repos/${data.repo.id}`);
 
 	const unsavedDiff = $derived.by((): DiffFile | null => {
 		if (content === savedContent) return null;
@@ -166,7 +154,7 @@
 	<div class="header-row">
 		<div>
 			<div class="desktop-only">
-				<BackLink href={backHref} label={backLabel} />
+				<BackLink fallback={repoHref} />
 			</div>
 			<div class="title-row">
 				<h1>{fileTitle}</h1>
@@ -277,7 +265,7 @@
 </section>
 
 <nav class="action-bar mobile-only" aria-label="File actions">
-	<a class="action-back" href={backHref} aria-label="Back to {backLabel}">
+	<button type="button" class="action-back" onclick={() => goBack(repoHref)} aria-label="Back">
 		<svg viewBox="0 0 14 14" aria-hidden="true">
 			<path
 				d="M8.75 2.25 3.5 7l5.25 4.75"
@@ -288,7 +276,7 @@
 				stroke-linejoin="round"
 			/>
 		</svg>
-	</a>
+	</button>
 	<div class="view-toggle" role="group" aria-label="View mode">
 		<button
 			type="button"

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
-	import { browser } from '$app/environment';
+	import { invalidateAll } from '$app/navigation';
+	import { goBack } from '$lib/navigation';
 
 	let { data } = $props();
 
@@ -14,14 +14,6 @@
 		authorName = data.settings.authorName ?? '';
 		authorEmail = data.settings.authorEmail ?? '';
 	});
-
-	function goBack() {
-		if (browser && window.history.length > 1) {
-			history.back();
-		} else {
-			goto('/');
-		}
-	}
 
 	async function submit(e: Event) {
 		e.preventDefault();
@@ -54,7 +46,7 @@
 
 <section class="stack" style="max-width: 520px">
 	<div>
-		<button type="button" class="back-link" onclick={goBack}>
+		<button type="button" class="back-link" onclick={() => goBack()}>
 			<svg viewBox="0 0 14 14" aria-hidden="true">
 				<path
 					d="M8.75 2.25 3.5 7l5.25 4.75"
