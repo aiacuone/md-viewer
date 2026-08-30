@@ -50,7 +50,11 @@
 			goto(c.href);
 			return;
 		}
-		const q = c.path ? `?path=${encodeURIComponent(c.path)}` : '';
+		openPath(c.path ?? '');
+	}
+
+	function openPath(path: string) {
+		const q = path ? `?path=${encodeURIComponent(path)}` : '';
 		goto(`/repos/${data.repo.id}${q}`);
 	}
 
