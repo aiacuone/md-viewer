@@ -33,7 +33,10 @@
 
 	const crumbs = $derived.by(() => {
 		const parts = data.path ? data.path.split('/').filter(Boolean) : [];
-		const items = [{ label: data.repo.name, path: '' }];
+		const items: { label: string; href?: string; path?: string }[] = [
+			{ label: 'Home', href: '/?list=1' },
+			{ label: data.repo.name, path: '' }
+		];
 		let acc = '';
 		for (const part of parts) {
 			acc = acc ? `${acc}/${part}` : part;
@@ -42,8 +45,12 @@
 		return items;
 	});
 
-	function openPath(path: string) {
-		const q = path ? `?path=${encodeURIComponent(path)}` : '';
+	function openCrumb(c: { href?: string; path?: string }) {
+		if (c.href) {
+			goto(c.href);
+			return;
+		}
+		const q = c.path ? `?path=${encodeURIComponent(c.path)}` : '';
 		goto(`/repos/${data.repo.id}${q}`);
 	}
 
@@ -96,7 +103,7 @@
 	<nav class="crumbs row desktop-only" aria-label="Breadcrumb">
 		{#each crumbs as c, i}
 			{#if i > 0}<span class="muted">/</span>{/if}
-			<button type="button" class="crumb" onclick={() => openPath(c.path)}>{c.label}</button>
+			<button type="button" class="crumb" onclick={() => openCrumb(c)}>{c.label}</button>
 		{/each}
 	</nav>
 
@@ -152,7 +159,7 @@
 	<div class="action-crumbs" aria-label="Breadcrumb">
 		{#each crumbs as c, i}
 			{#if i > 0}<span class="muted crumb-sep">/</span>{/if}
-			<button type="button" class="crumb" onclick={() => openPath(c.path)}>{c.label}</button>
+			<button type="button" class="crumb" onclick={() => openCrumb(c)}>{c.label}</button>
 		{/each}
 	</div>
 	<button type="button" class="action-sync" onclick={() => (syncOpen = true)}>Sync</button>
