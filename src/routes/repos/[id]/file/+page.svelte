@@ -7,7 +7,7 @@
 	import BackLink from '$lib/components/BackLink.svelte';
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
 	import type { DiffFile } from '$lib/types';
-	import { displayName } from '$lib/display';
+	import { displayName, treeEntryLabel } from '$lib/display';
 	import { goBack } from '$lib/navigation';
 	import { unifiedDiff } from '$lib/diff';
 	import { renderMarkdown } from '$lib/markdown';
@@ -34,9 +34,13 @@
 
 	const dirty = $derived(content !== savedContent);
 	const html = $derived(
-		renderMarkdown(content, { repoId: data.repo.id, filePath: data.path })
+		renderMarkdown(content, {
+			repoId: data.repo.id,
+			filePath: data.path,
+			contentRoot: data.repo.contentRoot || undefined
+		})
 	);
-	const fileTitle = $derived(displayName(data.path.split('/').pop() ?? data.path));
+	const fileTitle = $derived(treeEntryLabel({ name: data.path.split('/').pop() ?? data.path, path: data.path, type: 'file' }));
 	const repoHref = $derived(`/repos/${data.repo.id}`);
 
 	const unsavedDiff = $derived.by((): DiffFile | null => {

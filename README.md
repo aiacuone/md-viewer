@@ -19,6 +19,8 @@ npm run dev
 
 Open http://localhost:5173
 
+**Live:** http://161.33.95.248:3000 (Oracle Cloud VM — see [docs/deploy.md](docs/deploy.md))
+
 Configure commit author under **Settings**. Clones are stored in `data/repos/` (gitignored).
 
 ## Scripts

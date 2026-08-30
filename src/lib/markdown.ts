@@ -10,6 +10,7 @@ export function stripFrontMatter(content: string): string {
 export type RenderMarkdownOptions = {
 	repoId: string;
 	filePath: string;
+	contentRoot?: string;
 };
 
 const EXTERNAL_HREF = /^(https?:|mailto:|tel:)/i;
@@ -49,8 +50,22 @@ function splitHash(href: string): { path: string; hash: string } {
 	return { path: href.slice(0, i), hash: href.slice(i) };
 }
 
-function resolveDocPath(hrefPath: string, filePath: string): string {
+function resolveDocPath(hrefPath: string, filePath: string, contentRoot?: string): string {
 	const cleaned = hrefPath.replace(/\\/g, '/');
+	if (filePath.startsWith('@root/')) {
+		const repoPath = normalizePosix(cleaned.startsWith('/') ? cleaned.slice(1) : cleaned);
+		if (contentRoot) {
+			const root = contentRoot.replace(/^\/+|\/+$/g, '');
+			if (repoPath === root) return '.';
+			if (repoPath.startsWith(`${root}/`)) {
+				return repoPath.slice(root.length + 1);
+			}
+		}
+		if (/^readme\.(md|markdown)$/i.test(repoPath)) {
+			return `@root/${repoPath}`;
+		}
+		return repoPath;
+	}
 	if (cleaned.startsWith('/')) {
 		return normalizePosix(cleaned.slice(1));
 	}
@@ -60,7 +75,7 @@ function resolveDocPath(hrefPath: string, filePath: string): string {
 }
 
 /** Rewrite markdown hrefs for in-app navigation / safe external opens. */
-export function rewriteHref(href: string, { repoId, filePath }: RenderMarkdownOptions): {
+export function rewriteHref(href: string, { repoId, filePath, contentRoot }: RenderMarkdownOptions): {
 	href: string;
 	external: boolean;
 } {
@@ -80,7 +95,7 @@ export function rewriteHref(href: string, { repoId, filePath }: RenderMarkdownOp
 	}
 
 	if (MARKDOWN_EXT.test(path)) {
-		const resolved = resolveDocPath(path, filePath);
+		const resolved = resolveDocPath(path, filePath, contentRoot);
 		return {
 			href: `/repos/${repoId}/file?path=${encodeURIComponent(resolved)}${hash}`,
 			external: false

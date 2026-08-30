@@ -9,7 +9,9 @@ import { getSettings } from './settings';
 import {
 	repoDir,
 	resolveContentPath,
-	toRepoRelative,
+	resolveMarkdownPath,
+	toRootScopedPath,
+	isRootScopedPath,
 	ensureDataDirs
 } from './paths';
 import { pathExists } from './repos';
@@ -76,6 +78,23 @@ export async function cloneRepo(meta: RepoMeta): Promise<void> {
 	}
 }
 
+const README_PATTERN = /^readme\.(md|markdown)$/i;
+
+async function listRootReadmes(repoRoot: string): Promise<TreeEntry[]> {
+	const entries = await readdir(repoRoot, { withFileTypes: true });
+	const result: TreeEntry[] = [];
+	for (const entry of entries) {
+		if (entry.isFile() && README_PATTERN.test(entry.name)) {
+			result.push({
+				name: entry.name,
+				path: toRootScopedPath(entry.name),
+				type: 'file'
+			});
+		}
+	}
+	return result;
+}
+
 export async function listTree(meta: RepoMeta, relativePath = ''): Promise<TreeEntry[]> {
 	const dir = repoDir(meta.id);
 	const abs = resolveContentPath(dir, meta.contentRoot, relativePath);
@@ -92,7 +111,14 @@ export async function listTree(meta: RepoMeta, relativePath = ''): Promise<TreeE
 		}
 	}
 
+	if (meta.contentRoot && !relativePath) {
+		result.push(...(await listRootReadmes(dir)));
+	}
+
 	return result.sort((a, b) => {
+		const aRoot = isRootScopedPath(a.path);
+		const bRoot = isRootScopedPath(b.path);
+		if (aRoot !== bRoot) return aRoot ? -1 : 1;
 		if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
 		return a.name.localeCompare(b.name);
 	});
@@ -102,8 +128,8 @@ export async function readMarkdownFile(meta: RepoMeta, relativePath: string): Pr
 	if (!/\.(md|markdown)$/i.test(relativePath)) {
 		throw new Error('Only markdown files can be opened');
 	}
-	const abs = resolveContentPath(repoDir(meta.id), meta.contentRoot, relativePath);
-	return readFile(abs, 'utf8');
+	const { absolute } = resolveMarkdownPath(repoDir(meta.id), meta.contentRoot, relativePath);
+	return readFile(absolute, 'utf8');
 }
 
 export async function readMarkdownFileAtHead(
@@ -114,8 +140,7 @@ export async function readMarkdownFileAtHead(
 		throw new Error('Only markdown files can be opened');
 	}
 	const dir = repoDir(meta.id);
-	const abs = resolveContentPath(dir, meta.contentRoot, relativePath);
-	const repoRelative = toRepoRelative(dir, abs);
+	const { absolute, repoRelative } = resolveMarkdownPath(dir, meta.contentRoot, relativePath);
 
 	try {
 		const commit = await git.resolveRef({ fs, dir, ref: 'HEAD' });
@@ -134,9 +159,9 @@ export async function writeMarkdownFile(
 	if (!/\.(md|markdown)$/i.test(relativePath)) {
 		throw new Error('Only markdown files can be saved');
 	}
-	const abs = resolveContentPath(repoDir(meta.id), meta.contentRoot, relativePath);
-	await mkdir(path.dirname(abs), { recursive: true });
-	await writeFile(abs, content, 'utf8');
+	const { absolute } = resolveMarkdownPath(repoDir(meta.id), meta.contentRoot, relativePath);
+	await mkdir(path.dirname(absolute), { recursive: true });
+	await writeFile(absolute, content, 'utf8');
 }
 
 async function matrixStatus(dir: string) {
@@ -149,10 +174,8 @@ function filterToContentRoot(
 ): boolean {
 	if (!meta.contentRoot) return true;
 	const root = meta.contentRoot.replace(/\\/g, '/');
-	return (
-		repoRelativePath === root ||
-		repoRelativePath.startsWith(root + '/')
-	);
+	if (repoRelativePath === root || repoRelativePath.startsWith(root + '/')) return true;
+	return README_PATTERN.test(repoRelativePath.split('/').pop() ?? '') && !repoRelativePath.includes('/');
 }
 
 export async function getSyncStatus(meta: RepoMeta): Promise<SyncStatus> {
@@ -209,8 +232,7 @@ export async function getDiffs(meta: RepoMeta, onlyPath?: string): Promise<DiffF
 		if (!isMatrixChanged(head, workdir, stage)) continue;
 
 		if (onlyPath) {
-			const absOnly = resolveContentPath(dir, meta.contentRoot, onlyPath);
-			const repoOnly = toRepoRelative(dir, absOnly);
+			const { repoRelative: repoOnly } = resolveMarkdownPath(dir, meta.contentRoot, onlyPath);
 			const normalized = onlyPath.replace(/\\/g, '/');
 			if (filepath !== repoOnly && filepath !== normalized && !filepath.endsWith(`/${normalized}`)) {
 				continue;

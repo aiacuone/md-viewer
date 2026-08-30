@@ -4,7 +4,7 @@
 	import CommitModal from '$lib/components/CommitModal.svelte';
 	import BackLink from '$lib/components/BackLink.svelte';
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
-	import { displayName } from '$lib/display';
+	import { displayName, treeEntryLabel } from '$lib/display';
 	import { goBack } from '$lib/navigation';
 
 	let { data } = $props();
@@ -120,13 +120,13 @@
 								class="row-main"
 								href={`/repos/${data.repo.id}/file?path=${encodeURIComponent(entry.path)}`}
 							>
-								{displayName(entry.name)}
+								{treeEntryLabel(entry)}
 							</a>
 						{/if}
 						<FavouriteStar
 							favourited={favouriteSet.has(entry.path)}
 							busy={starBusy === entry.path}
-							label={displayName(entry.name)}
+							label={treeEntryLabel(entry)}
 							onclick={() => toggleStar(entry.path)}
 						/>
 					</li>
