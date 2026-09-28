@@ -21,8 +21,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		remoteUrl,
 		name: body.name,
 		contentRoot: body.contentRoot,
-		token: body.token,
-		tokenFromRepoId: body.tokenFromRepoId,
 		defaultBranch: body.defaultBranch
 	});
 

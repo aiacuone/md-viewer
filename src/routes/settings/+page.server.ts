@@ -1,7 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { getSettings } from '$lib/server/settings';
+import { getSettings, toPublicSettings } from '$lib/server/settings';
 
 export const load: PageServerLoad = async () => {
-	const settings = await getSettings();
-	return { settings };
+	return { settings: toPublicSettings(await getSettings()) };
 };

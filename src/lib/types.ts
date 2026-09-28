@@ -6,13 +6,9 @@ export type RepoMeta = {
 	contentRoot: string;
 	createdAt: string;
 	lastSyncedAt: string | null;
-	/** Present only in stored JSON — never returned to clients */
-	token?: string;
 };
 
-export type RepoPublic = Omit<RepoMeta, 'token'> & {
-	hasToken: boolean;
-};
+export type RepoPublic = RepoMeta;
 
 export type AppSettings = {
 	authorName: string;
@@ -21,6 +17,13 @@ export type AppSettings = {
 	defaultRepoId: string | null;
 	/** Favourited paths (repo-relative) keyed by repo id */
 	favouritesByRepo: Record<string, string[]>;
+	/** Present only in stored JSON — never returned to clients */
+	token?: string;
+};
+
+/** Settings shape safe to send to clients */
+export type SettingsPublic = Omit<AppSettings, 'token'> & {
+	hasToken: boolean;
 };
 
 export type TreeEntry = {

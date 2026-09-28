@@ -1,10 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getSettings, saveSettings } from '$lib/server/settings';
+import { getSettings, saveSettings, toPublicSettings } from '$lib/server/settings';
 import { listRepos } from '$lib/server/repos';
 
 export const GET: RequestHandler = async () => {
-	return json(await getSettings());
+	return json(toPublicSettings(await getSettings()));
 };
 
 export const PUT: RequestHandler = async ({ request }) => {
@@ -22,12 +22,20 @@ export const PUT: RequestHandler = async ({ request }) => {
 	}
 
 	const current = await getSettings();
+	let token = current.token;
+	if (body.clearToken === true) {
+		token = undefined;
+	} else if (typeof body.token === 'string' && body.token.trim()) {
+		token = body.token.trim();
+	}
+
 	const saved = await saveSettings({
 		authorName: String(body.authorName ?? current.authorName),
 		authorEmail: String(body.authorEmail ?? current.authorEmail),
 		defaultRepoId,
 		favouritesByRepo:
-			body.favouritesByRepo !== undefined ? body.favouritesByRepo : current.favouritesByRepo
+			body.favouritesByRepo !== undefined ? body.favouritesByRepo : current.favouritesByRepo,
+		...(token ? { token } : {})
 	});
-	return json(saved);
+	return json(toPublicSettings(saved));
 };

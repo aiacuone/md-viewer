@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import type { AppSettings, RepoPublic } from '$lib/types';
-import { SETTINGS_PATH, ensureDataDirs } from './paths';
+import type { AppSettings, RepoPublic, SettingsPublic } from '$lib/types';
+import { META_PATH, SETTINGS_PATH, ensureDataDirs } from './paths';
 
 const DEFAULTS: AppSettings = {
 	authorName: 'MD Viewer',
@@ -27,35 +27,97 @@ function normalizeFavourites(raw: unknown): Record<string, string[]> {
 	return out;
 }
 
+export function toPublicSettings(settings: AppSettings): SettingsPublic {
+	const { token, ...rest } = settings;
+	return { ...rest, hasToken: Boolean(token?.trim()) };
+}
+
+/**
+ * Promote any legacy per-repo tokens into app settings, then strip them from repos.json.
+ * Returns a token to use when settings does not already have one.
+ */
+async function migrateRepoTokens(existingToken?: string): Promise<string | undefined> {
+	await ensureDataDirs();
+	let repos: Array<Record<string, unknown>>;
+	try {
+		const raw = await readFile(META_PATH, 'utf8');
+		const data = JSON.parse(raw);
+		if (!Array.isArray(data)) return existingToken?.trim() || undefined;
+		repos = data;
+	} catch {
+		return existingToken?.trim() || undefined;
+	}
+
+	let promoted: string | undefined;
+	let changed = false;
+	const cleaned = repos.map((repo) => {
+		const token = typeof repo.token === 'string' ? repo.token.trim() : '';
+		if (token) {
+			if (!promoted) promoted = token;
+			changed = true;
+			const { token: _removed, ...rest } = repo;
+			return rest;
+		}
+		return repo;
+	});
+
+	if (changed) {
+		await writeFile(META_PATH, JSON.stringify(cleaned, null, 2), 'utf8');
+	}
+
+	const kept = existingToken?.trim() || undefined;
+	return kept || promoted;
+}
+
 export async function getSettings(): Promise<AppSettings> {
 	await ensureDataDirs();
+	let parsed: Partial<AppSettings> = {};
 	try {
 		const raw = await readFile(SETTINGS_PATH, 'utf8');
-		const parsed = JSON.parse(raw) as Partial<AppSettings>;
-		return {
-			authorName: parsed.authorName?.trim() || DEFAULTS.authorName,
-			authorEmail: parsed.authorEmail?.trim() || DEFAULTS.authorEmail,
-			defaultRepoId:
-				typeof parsed.defaultRepoId === 'string' && parsed.defaultRepoId
-					? parsed.defaultRepoId
-					: null,
-			favouritesByRepo: normalizeFavourites(parsed.favouritesByRepo)
-		};
+		parsed = JSON.parse(raw) as Partial<AppSettings>;
 	} catch {
-		return { ...DEFAULTS, favouritesByRepo: {} };
+		parsed = {};
 	}
+
+	const fileToken = typeof parsed.token === 'string' ? parsed.token.trim() : undefined;
+	const token = await migrateRepoTokens(fileToken);
+
+	const settings: AppSettings = {
+		authorName: parsed.authorName?.trim() || DEFAULTS.authorName,
+		authorEmail: parsed.authorEmail?.trim() || DEFAULTS.authorEmail,
+		defaultRepoId:
+			typeof parsed.defaultRepoId === 'string' && parsed.defaultRepoId
+				? parsed.defaultRepoId
+				: null,
+		favouritesByRepo: normalizeFavourites(parsed.favouritesByRepo),
+		...(token ? { token } : {})
+	};
+
+	// Persist promoted token if settings file lacked one
+	if (token && !fileToken) {
+		await writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2), 'utf8');
+	}
+
+	return settings;
 }
 
 export async function saveSettings(settings: AppSettings): Promise<AppSettings> {
 	await ensureDataDirs();
+	const token = settings.token?.trim() || undefined;
 	const next: AppSettings = {
 		authorName: settings.authorName.trim() || DEFAULTS.authorName,
 		authorEmail: settings.authorEmail.trim() || DEFAULTS.authorEmail,
 		defaultRepoId: settings.defaultRepoId?.trim() || null,
-		favouritesByRepo: normalizeFavourites(settings.favouritesByRepo)
+		favouritesByRepo: normalizeFavourites(settings.favouritesByRepo),
+		...(token ? { token } : {})
 	};
 	await writeFile(SETTINGS_PATH, JSON.stringify(next, null, 2), 'utf8');
 	return next;
+}
+
+export async function getGitToken(): Promise<string | undefined> {
+	const settings = await getSettings();
+	return settings.token?.trim() || undefined;
 }
 
 export async function getFavouritesForRepo(repoId: string): Promise<string[]> {

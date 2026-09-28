@@ -8,7 +8,7 @@ SvelteKit PWA for browsing and editing markdown files in git repositories.
 - Browse folders and open `.md` files
 - Edit with CodeMirror, preview with marked
 - Save → Commit + push (with diffs); Pull separately
-- PAT stored server-side per repo
+- One personal access token under Settings, used for all repos
 
 ## Setup
 
@@ -21,7 +21,7 @@ Open http://localhost:5173
 
 **Live:** http://161.33.95.248:3000 (Oracle Cloud VM — see [docs/deploy.md](docs/deploy.md))
 
-Configure commit author under **Settings**. Clones are stored in `data/repos/` (gitignored).
+Configure commit author and PAT under **Settings**. Clones are stored in `data/repos/` (gitignored).
 
 ## Scripts
 

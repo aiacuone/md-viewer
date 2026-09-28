@@ -8,7 +8,12 @@ async function readAll(): Promise<RepoMeta[]> {
 	try {
 		const raw = await readFile(META_PATH, 'utf8');
 		const data = JSON.parse(raw);
-		return Array.isArray(data) ? data : [];
+		if (!Array.isArray(data)) return [];
+		// Drop legacy per-repo token fields if still present
+		return data.map((repo: RepoMeta & { token?: string }) => {
+			const { token: _token, ...rest } = repo as RepoMeta & { token?: string };
+			return rest as RepoMeta;
+		});
 	} catch {
 		return [];
 	}
@@ -20,8 +25,7 @@ async function writeAll(repos: RepoMeta[]): Promise<void> {
 }
 
 export function toPublic(repo: RepoMeta): RepoPublic {
-	const { token, ...rest } = repo;
-	return { ...rest, hasToken: Boolean(token) };
+	return { ...repo };
 }
 
 export async function listRepos(): Promise<RepoPublic[]> {
@@ -54,20 +58,11 @@ export type AddRepoInput = {
 	remoteUrl: string;
 	name?: string;
 	contentRoot?: string;
-	token?: string;
-	/** Copy token from an existing repo (server-side only) */
-	tokenFromRepoId?: string;
 	defaultBranch?: string;
 };
 
 export async function addRepoMeta(input: AddRepoInput): Promise<RepoMeta> {
 	const repos = await readAll();
-	let token = input.token?.trim() || undefined;
-	if (!token && input.tokenFromRepoId) {
-		const source = repos.find((r) => r.id === input.tokenFromRepoId);
-		if (!source?.token) throw new Error('Selected repository has no token to reuse');
-		token = source.token;
-	}
 	const id = randomUUID();
 	const meta: RepoMeta = {
 		id,
@@ -76,8 +71,7 @@ export async function addRepoMeta(input: AddRepoInput): Promise<RepoMeta> {
 		defaultBranch: input.defaultBranch?.trim() || 'main',
 		contentRoot: normalizeContentRoot(input.contentRoot),
 		createdAt: new Date().toISOString(),
-		lastSyncedAt: null,
-		token
+		lastSyncedAt: null
 	};
 	repos.push(meta);
 	await writeAll(repos);

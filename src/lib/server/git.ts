@@ -5,7 +5,7 @@ import http from 'isomorphic-git/http/node';
 import fs from 'node:fs';
 import type { DiffFile, SyncStatus, TreeEntry } from '$lib/types';
 import type { RepoMeta } from '$lib/types';
-import { getSettings } from './settings';
+import { getGitToken, getSettings } from './settings';
 import {
 	repoDir,
 	resolveContentPath,
@@ -30,6 +30,7 @@ export async function cloneRepo(meta: RepoMeta): Promise<void> {
 	await ensureDataDirs();
 	const dir = repoDir(meta.id);
 	await mkdir(dir, { recursive: true });
+	const token = await getGitToken();
 
 	const ref = meta.defaultBranch || undefined;
 	try {
@@ -40,7 +41,7 @@ export async function cloneRepo(meta: RepoMeta): Promise<void> {
 			url: meta.remoteUrl,
 			singleBranch: true,
 			...(ref ? { ref } : {}),
-			onAuth: onAuth(meta.token)
+			onAuth: onAuth(token)
 		});
 	} catch (err) {
 		// Retry without explicit ref if branch name wrong
@@ -53,7 +54,7 @@ export async function cloneRepo(meta: RepoMeta): Promise<void> {
 				dir,
 				url: meta.remoteUrl,
 				singleBranch: true,
-				onAuth: onAuth(meta.token)
+				onAuth: onAuth(token)
 			});
 		} else {
 			throw err;
@@ -313,6 +314,7 @@ export async function pullRepo(meta: RepoMeta): Promise<void> {
 
 	const branch = status.branch;
 	const settings = await getSettings();
+	const token = settings.token?.trim() || undefined;
 
 	try {
 		await git.pull({
@@ -322,7 +324,7 @@ export async function pullRepo(meta: RepoMeta): Promise<void> {
 			ref: branch,
 			singleBranch: true,
 			fastForward: true,
-			onAuth: onAuth(meta.token),
+			onAuth: onAuth(token),
 			author: {
 				name: settings.authorName,
 				email: settings.authorEmail
@@ -335,13 +337,17 @@ export async function pullRepo(meta: RepoMeta): Promise<void> {
 				'Histories have diverged; resolve on another machine or reset. In-app merge is not supported in v1.'
 			);
 		}
+		if (/401|403|auth|authentication|unauthorized/i.test(msg)) {
+			throw new Error('Authentication failed. Check the token under Settings.');
+		}
 		throw err;
 	}
 }
 
 export async function pushRepo(meta: RepoMeta): Promise<void> {
-	if (!meta.token) {
-		throw new Error('A personal access token is required to push');
+	const token = await getGitToken();
+	if (!token) {
+		throw new Error('A personal access token is required to push. Add one under Settings.');
 	}
 	const dir = repoDir(meta.id);
 	const branch =
@@ -354,7 +360,7 @@ export async function pushRepo(meta: RepoMeta): Promise<void> {
 			dir,
 			remote: 'origin',
 			ref: branch,
-			onAuth: onAuth(meta.token)
+			onAuth: onAuth(token)
 		});
 	} catch (err) {
 		const msg = err instanceof Error ? err.message : String(err);
@@ -362,7 +368,7 @@ export async function pushRepo(meta: RepoMeta): Promise<void> {
 			throw new Error('Push rejected (non-fast-forward). Pull first, then try again.');
 		}
 		if (/401|403|auth|authentication|unauthorized/i.test(msg)) {
-			throw new Error('Authentication failed. Check the repository token.');
+			throw new Error('Authentication failed. Check the token under Settings.');
 		}
 		throw err;
 	}
