@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
 	import SyncBar from '$lib/components/SyncBar.svelte';
 	import CommitModal from '$lib/components/CommitModal.svelte';
+	import PasteNotesModal from '$lib/components/PasteNotesModal.svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
 	import BackLink from '$lib/components/BackLink.svelte';
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
@@ -23,6 +25,7 @@
 	let errorMsg = $state('');
 	let commitOpen = $state(false);
 	let syncOpen = $state(false);
+	let pasteOpen = $state(false);
 	let favourites = $state<string[]>([]);
 	let starBusy = $state(false);
 
@@ -42,6 +45,11 @@
 	);
 	const fileTitle = $derived(treeEntryLabel({ name: data.path.split('/').pop() ?? data.path, path: data.path, type: 'file' }));
 	const repoHref = $derived(`/repos/${data.repo.id}`);
+	const parentFolder = $derived.by(() => {
+		const parts = data.path.split('/').filter(Boolean);
+		parts.pop();
+		return parts.join('/');
+	});
 
 	const unsavedDiff = $derived.by((): DiffFile | null => {
 		if (content === savedContent) return null;
@@ -104,6 +112,11 @@
 
 	async function refresh() {
 		await invalidateAll();
+	}
+
+	async function onPasteSaved(path: string) {
+		await refresh();
+		await goto(`/repos/${data.repo.id}/file?path=${encodeURIComponent(path)}`);
 	}
 
 	async function toggleStar() {
@@ -169,15 +182,12 @@
 					onclick={toggleStar}
 				/>
 			</div>
+			<p class="muted file-path" title={data.path}>{data.path}</p>
 		</div>
-		<SyncBar
-			repoId={data.repo.id}
-			status={data.status}
-			onRefresh={refresh}
-			onCommit={() => (commitOpen = true)}
-			bind:open={syncOpen}
-			triggerClass="desktop-only"
-		/>
+		<div class="header-actions desktop-only">
+			<button type="button" onclick={() => (pasteOpen = true)}>Convert</button>
+			<button type="button" onclick={() => (syncOpen = true)}>Sync</button>
+		</div>
 	</div>
 
 	<div class="row desktop-only">
@@ -301,12 +311,26 @@
 		{saving ? '…' : 'Save'}
 		{#if dirty && !saving}<span class="dirty-dot" aria-hidden="true"></span>{/if}
 	</button>
+	<button type="button" class="action-convert" onclick={() => (pasteOpen = true)}>Convert</button>
 	<button type="button" onclick={() => (syncOpen = true)}>Sync</button>
 	<button type="button" onclick={toggleDiff}>{showDiff ? 'Hide' : 'Diff'}</button>
 </nav>
 
 <CommitModal repoId={data.repo.id} bind:open={commitOpen} onCommitted={refresh} />
-
+<PasteNotesModal
+	repoId={data.repo.id}
+	folder={parentFolder}
+	bind:open={pasteOpen}
+	onSaved={onPasteSaved}
+/>
+<SyncBar
+	repoId={data.repo.id}
+	status={data.status}
+	onRefresh={refresh}
+	onCommit={() => (commitOpen = true)}
+	bind:open={syncOpen}
+	showTrigger={false}
+/>
 <style>
 	h1 {
 		margin: 0.35rem 0;
@@ -326,12 +350,26 @@
 		flex: 1 1 auto;
 	}
 
+	.file-path {
+		margin: 0.15rem 0 0;
+		font-family: var(--font-mono);
+		font-size: 0.8rem;
+		word-break: break-all;
+	}
+
 	.header-row {
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
 		gap: 1rem;
 		flex-wrap: wrap;
+	}
+
+	.header-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
 	}
 
 	.pane {
@@ -440,6 +478,29 @@
 		font-size: 0.88em;
 	}
 
+	.preview :global(table) {
+		width: 100%;
+		border-collapse: collapse;
+		margin: 0.75em 0;
+		font-size: 0.95em;
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		overflow: hidden;
+	}
+
+	.preview :global(thead th) {
+		background: var(--bg-soft);
+		font-weight: 700;
+		text-align: left;
+	}
+
+	.preview :global(th),
+	.preview :global(td) {
+		border: 1px solid var(--border);
+		padding: 0.55rem 0.7rem;
+		vertical-align: top;
+	}
+
 	.diff-panel {
 		display: grid;
 		gap: 1rem;
@@ -480,8 +541,10 @@
 	.action-bar > button,
 	.action-back {
 		flex: 0 0 auto;
+		flex-shrink: 0;
 		padding: 0.5rem 0.55rem;
 		font-size: 0.85rem;
+		white-space: nowrap;
 	}
 
 	.action-back {

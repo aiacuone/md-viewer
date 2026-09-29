@@ -2,6 +2,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import SyncBar from '$lib/components/SyncBar.svelte';
 	import CommitModal from '$lib/components/CommitModal.svelte';
+	import PasteNotesModal from '$lib/components/PasteNotesModal.svelte';
 	import BackLink from '$lib/components/BackLink.svelte';
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
 	import { displayName, treeEntryLabel } from '$lib/display';
@@ -10,6 +11,7 @@
 	let { data } = $props();
 	let commitOpen = $state(false);
 	let syncOpen = $state(false);
+	let pasteOpen = $state(false);
 	let favourites = $state<string[]>([]);
 	let starBusy = $state<string | null>(null);
 	let starError = $state('');
@@ -81,6 +83,11 @@
 	async function refresh() {
 		await invalidateAll();
 	}
+
+	async function onPasteSaved(path: string) {
+		await refresh();
+		await goto(`/repos/${data.repo.id}/file?path=${encodeURIComponent(path)}`);
+	}
 </script>
 
 <section class="stack repo-page">
@@ -94,14 +101,21 @@
 				<p class="muted">content root <code>{data.repo.contentRoot}</code></p>
 			{/if}
 		</div>
-		<SyncBar
-			repoId={data.repo.id}
-			status={data.status}
-			onRefresh={refresh}
-			onCommit={() => (commitOpen = true)}
-			bind:open={syncOpen}
-			triggerClass="desktop-only"
-		/>
+		<div class="header-actions desktop-only">
+			<button type="button" onclick={() => (pasteOpen = true)}>Convert</button>
+			<button type="button" class="sync-trigger" onclick={() => (syncOpen = true)}>
+				Sync
+				{#if data.status}
+					<span class="muted"
+						>{data.status.branch} · {data.status.uncommitted.length
+							? `${data.status.uncommitted.length} uncommitted`
+							: 'clean'}{#if data.status.ahead}
+							· ahead {data.status.ahead}{/if}{#if data.status.behind}
+							· behind {data.status.behind}{/if}</span
+					>
+				{/if}
+			</button>
+		</div>
 	</div>
 
 	<nav class="crumbs row desktop-only" aria-label="Breadcrumb">
@@ -166,10 +180,28 @@
 			<button type="button" class="crumb" onclick={() => openCrumb(c)}>{c.label}</button>
 		{/each}
 	</div>
+	<button type="button" class="primary action-convert" onclick={() => (pasteOpen = true)}>
+		Convert
+	</button>
 	<button type="button" class="action-sync" onclick={() => (syncOpen = true)}>Sync</button>
 </nav>
 
+<SyncBar
+	repoId={data.repo.id}
+	status={data.status}
+	onRefresh={refresh}
+	onCommit={() => (commitOpen = true)}
+	bind:open={syncOpen}
+	showTrigger={false}
+/>
+
 <CommitModal repoId={data.repo.id} bind:open={commitOpen} onCommitted={refresh} />
+<PasteNotesModal
+	repoId={data.repo.id}
+	folder={data.path}
+	bind:open={pasteOpen}
+	onSaved={onPasteSaved}
+/>
 
 <style>
 	h1 {
@@ -183,6 +215,24 @@
 		align-items: flex-start;
 		gap: 1rem;
 		flex-wrap: wrap;
+	}
+
+	.header-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.sync-trigger {
+		display: inline-flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.sync-trigger .muted {
+		font-size: 0.85rem;
+		font-weight: 400;
 	}
 
 	.crumb {
@@ -249,7 +299,7 @@
 		z-index: 40;
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: 0.35rem;
 		padding: 0.55rem 0.65rem calc(0.55rem + env(safe-area-inset-bottom));
 		background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
 		border-top: 1px solid var(--border);
@@ -310,10 +360,13 @@
 		font-size: 0.85rem;
 	}
 
-	.action-sync {
+	.action-sync,
+	.action-convert {
 		flex: 0 0 auto;
+		flex-shrink: 0;
 		padding: 0.5rem 0.65rem;
 		font-size: 0.85rem;
+		white-space: nowrap;
 	}
 
 	@media (max-width: 767px) {

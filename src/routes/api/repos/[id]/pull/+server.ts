@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getRepoOrThrow, updateRepo } from '$lib/server/repos';
-import { pullRepo } from '$lib/server/git';
+import { DIVERGED_CODE, pullRepo } from '$lib/server/git';
 
 export const POST: RequestHandler = async ({ params }) => {
 	try {
@@ -11,7 +11,8 @@ export const POST: RequestHandler = async ({ params }) => {
 		return json({ ok: true });
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Pull failed';
+		const code = (err as Error & { code?: string })?.code;
 		if (message === 'Repository not found') error(404, message);
-		error(400, message);
+		return json({ message, code: code === DIVERGED_CODE ? DIVERGED_CODE : undefined }, { status: 400 });
 	}
 };

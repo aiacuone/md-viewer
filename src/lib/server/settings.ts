@@ -28,8 +28,12 @@ function normalizeFavourites(raw: unknown): Record<string, string[]> {
 }
 
 export function toPublicSettings(settings: AppSettings): SettingsPublic {
-	const { token, ...rest } = settings;
-	return { ...rest, hasToken: Boolean(token?.trim()) };
+	const { token: _token, aiKey: _aiKey, ...rest } = settings;
+	return {
+		...rest,
+		hasToken: Boolean(settings.token?.trim()),
+		hasAiKey: Boolean(settings.aiKey?.trim())
+	};
 }
 
 /**
@@ -81,6 +85,7 @@ export async function getSettings(): Promise<AppSettings> {
 
 	const fileToken = typeof parsed.token === 'string' ? parsed.token.trim() : undefined;
 	const token = await migrateRepoTokens(fileToken);
+	const aiKey = typeof parsed.aiKey === 'string' ? parsed.aiKey.trim() : undefined;
 
 	const settings: AppSettings = {
 		authorName: parsed.authorName?.trim() || DEFAULTS.authorName,
@@ -90,7 +95,8 @@ export async function getSettings(): Promise<AppSettings> {
 				? parsed.defaultRepoId
 				: null,
 		favouritesByRepo: normalizeFavourites(parsed.favouritesByRepo),
-		...(token ? { token } : {})
+		...(token ? { token } : {}),
+		...(aiKey ? { aiKey } : {})
 	};
 
 	// Persist promoted token if settings file lacked one
@@ -104,12 +110,14 @@ export async function getSettings(): Promise<AppSettings> {
 export async function saveSettings(settings: AppSettings): Promise<AppSettings> {
 	await ensureDataDirs();
 	const token = settings.token?.trim() || undefined;
+	const aiKey = settings.aiKey?.trim() || undefined;
 	const next: AppSettings = {
 		authorName: settings.authorName.trim() || DEFAULTS.authorName,
 		authorEmail: settings.authorEmail.trim() || DEFAULTS.authorEmail,
 		defaultRepoId: settings.defaultRepoId?.trim() || null,
 		favouritesByRepo: normalizeFavourites(settings.favouritesByRepo),
-		...(token ? { token } : {})
+		...(token ? { token } : {}),
+		...(aiKey ? { aiKey } : {})
 	};
 	await writeFile(SETTINGS_PATH, JSON.stringify(next, null, 2), 'utf8');
 	return next;

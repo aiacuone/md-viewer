@@ -29,13 +29,21 @@ export const PUT: RequestHandler = async ({ request }) => {
 		token = body.token.trim();
 	}
 
+	let aiKey = current.aiKey;
+	if (body.clearAiKey === true) {
+		aiKey = undefined;
+	} else if (typeof body.aiKey === 'string' && body.aiKey.trim()) {
+		aiKey = body.aiKey.trim();
+	}
+
 	const saved = await saveSettings({
 		authorName: String(body.authorName ?? current.authorName),
 		authorEmail: String(body.authorEmail ?? current.authorEmail),
 		defaultRepoId,
 		favouritesByRepo:
 			body.favouritesByRepo !== undefined ? body.favouritesByRepo : current.favouritesByRepo,
-		...(token ? { token } : {})
+		...(token ? { token } : {}),
+		...(aiKey ? { aiKey } : {})
 	});
 	return json(toPublicSettings(saved));
 };

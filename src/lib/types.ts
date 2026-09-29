@@ -19,11 +19,23 @@ export type AppSettings = {
 	favouritesByRepo: Record<string, string[]>;
 	/** Present only in stored JSON — never returned to clients */
 	token?: string;
+	/** DeepSeek API key — present only in stored JSON — never returned to clients */
+	aiKey?: string;
 };
 
 /** Settings shape safe to send to clients */
-export type SettingsPublic = Omit<AppSettings, 'token'> & {
+export type SettingsPublic = Omit<AppSettings, 'token' | 'aiKey'> & {
 	hasToken: boolean;
+	hasAiKey: boolean;
+};
+
+export type ResolveStrategy = 'keep_local' | 'keep_remote' | 'ai_merge';
+
+export type ResolveOption = {
+	id: string;
+	title: string;
+	summary: string;
+	strategy: ResolveStrategy;
 };
 
 export type TreeEntry = {

@@ -8,17 +8,23 @@
 	let authorEmail = $state('');
 	let token = $state('');
 	let hasToken = $state(false);
+	let aiKey = $state('');
+	let hasAiKey = $state(false);
 	let busy = $state(false);
 	let tokenBusy = $state(false);
+	let aiBusy = $state(false);
 	let saved = $state(false);
 	let tokenSaved = $state(false);
+	let aiSaved = $state(false);
 	let errorMsg = $state('');
 	let tokenError = $state('');
+	let aiError = $state('');
 
 	$effect(() => {
 		authorName = data.settings.authorName ?? '';
 		authorEmail = data.settings.authorEmail ?? '';
 		hasToken = data.settings.hasToken ?? false;
+		hasAiKey = data.settings.hasAiKey ?? false;
 	});
 
 	async function submit(e: Event) {
@@ -41,6 +47,7 @@
 			authorName = body.authorName;
 			authorEmail = body.authorEmail;
 			hasToken = body.hasToken;
+			hasAiKey = body.hasAiKey;
 			saved = true;
 			await invalidateAll();
 		} catch (err) {
@@ -73,6 +80,7 @@
 			const body = await res.json();
 			if (!res.ok) throw new Error(body.message || 'Failed to save token');
 			hasToken = body.hasToken;
+			hasAiKey = body.hasAiKey;
 			token = '';
 			tokenSaved = true;
 			await invalidateAll();
@@ -84,7 +92,9 @@
 	}
 
 	async function clearToken() {
-		const ok = confirm('Remove the personal access token? Push and private clones will fail until you add a new one.');
+		const ok = confirm(
+			'Remove the personal access token? Push and private clones will fail until you add a new one.'
+		);
 		if (!ok) return;
 		tokenBusy = true;
 		tokenSaved = false;
@@ -103,6 +113,7 @@
 			const body = await res.json();
 			if (!res.ok) throw new Error(body.message || 'Failed to clear token');
 			hasToken = body.hasToken;
+			hasAiKey = body.hasAiKey;
 			token = '';
 			tokenSaved = true;
 			await invalidateAll();
@@ -110,6 +121,73 @@
 			tokenError = err instanceof Error ? err.message : 'Failed to clear token';
 		} finally {
 			tokenBusy = false;
+		}
+	}
+
+	async function saveAiKey(e: Event) {
+		e.preventDefault();
+		if (!aiKey.trim()) {
+			aiError = 'Enter a DeepSeek API key to save';
+			return;
+		}
+		aiBusy = true;
+		aiSaved = false;
+		aiError = '';
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PUT',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					authorName,
+					authorEmail,
+					defaultRepoId: data.settings.defaultRepoId ?? null,
+					aiKey: aiKey.trim()
+				})
+			});
+			const body = await res.json();
+			if (!res.ok) throw new Error(body.message || 'Failed to save AI key');
+			hasToken = body.hasToken;
+			hasAiKey = body.hasAiKey;
+			aiKey = '';
+			aiSaved = true;
+			await invalidateAll();
+		} catch (err) {
+			aiError = err instanceof Error ? err.message : 'Failed to save AI key';
+		} finally {
+			aiBusy = false;
+		}
+	}
+
+	async function clearAiKey() {
+		const ok = confirm(
+			'Remove the DeepSeek API key? AI sync resolve and Convert will stop working.'
+		);
+		if (!ok) return;
+		aiBusy = true;
+		aiSaved = false;
+		aiError = '';
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PUT',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					authorName,
+					authorEmail,
+					defaultRepoId: data.settings.defaultRepoId ?? null,
+					clearAiKey: true
+				})
+			});
+			const body = await res.json();
+			if (!res.ok) throw new Error(body.message || 'Failed to clear AI key');
+			hasToken = body.hasToken;
+			hasAiKey = body.hasAiKey;
+			aiKey = '';
+			aiSaved = true;
+			await invalidateAll();
+		} catch (err) {
+			aiError = err instanceof Error ? err.message : 'Failed to clear AI key';
+		} finally {
+			aiBusy = false;
 		}
 	}
 </script>
@@ -130,7 +208,7 @@
 			Back
 		</button>
 		<h1>Settings</h1>
-		<p class="muted">Git author and access token used for all repositories.</p>
+		<p class="muted">Git author, access token, and DeepSeek key used for all repositories.</p>
 	</div>
 
 	<form class="card stack" onsubmit={submit}>
@@ -181,6 +259,37 @@
 			{/if}
 		</div>
 	</form>
+
+	<form class="card stack" onsubmit={saveAiKey}>
+		<h2>DeepSeek API key</h2>
+		<p class="muted">
+			Used for AI sync conflict resolution and Convert
+			(<code>deepseek-flash</code>).
+			{#if hasAiKey}
+				<span class="status set">Key set</span>
+			{:else}
+				<span class="status missing">No key</span>
+			{/if}
+		</p>
+		<label>
+			{hasAiKey ? 'Replace key' : 'API key'}
+			<input bind:value={aiKey} type="password" autocomplete="off" placeholder="sk-…" />
+		</label>
+		{#if aiError}
+			<p class="error">{aiError}</p>
+		{/if}
+		{#if aiSaved}
+			<p class="muted">AI key updated.</p>
+		{/if}
+		<div class="row">
+			<button class="primary" type="submit" disabled={aiBusy}>
+				{aiBusy ? 'Saving…' : hasAiKey ? 'Replace key' : 'Save key'}
+			</button>
+			{#if hasAiKey}
+				<button type="button" disabled={aiBusy} onclick={clearAiKey}>Clear</button>
+			{/if}
+		</div>
+	</form>
 </section>
 
 <style>
@@ -210,5 +319,10 @@
 
 	.status.missing {
 		color: var(--ink-muted);
+	}
+
+	code {
+		font-family: var(--font-mono);
+		font-size: 0.85em;
 	}
 </style>
