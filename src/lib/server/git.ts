@@ -182,6 +182,55 @@ export async function writeMarkdownFile(
 	await writeFile(absolute, content, 'utf8');
 }
 
+/** Delete a markdown file from disk and stage the removal in git when tracked. */
+export async function deleteMarkdownFile(meta: RepoMeta, relativePath: string): Promise<void> {
+	if (!/\.(md|markdown)$/i.test(relativePath)) {
+		throw new Error('Only markdown files can be deleted');
+	}
+	const dir = repoDir(meta.id);
+	const { absolute, repoRelative } = resolveMarkdownPath(dir, meta.contentRoot, relativePath);
+
+	try {
+		await unlink(absolute);
+	} catch (err) {
+		const code = (err as NodeJS.ErrnoException)?.code;
+		if (code !== 'ENOENT') throw err;
+		throw new Error('File not found');
+	}
+
+	try {
+		await git.remove({ fs, dir, filepath: repoRelative });
+	} catch {
+		// Untracked file — nothing to stage
+	}
+}
+
+/**
+ * Delete a markdown file, commit the deletion if needed, and push.
+ * Returns whether a commit was created.
+ */
+export async function deleteMarkdownFileAndSync(
+	meta: RepoMeta,
+	relativePath: string
+): Promise<{ committed: boolean; sha?: string }> {
+	const status = await getSyncStatus(meta);
+	if (!status.clean) {
+		throw new Error('Commit or discard other local changes before deleting a file');
+	}
+
+	await deleteMarkdownFile(meta, relativePath);
+
+	const after = await getSyncStatus(meta);
+	if (after.clean) {
+		return { committed: false };
+	}
+
+	const name = relativePath.split('/').pop() || relativePath;
+	const sha = await commitAll(meta, `docs/delete ${name}`);
+	await pushRepo(meta);
+	return { committed: true, sha };
+}
+
 async function matrixStatus(dir: string) {
 	return git.statusMatrix({ fs, dir });
 }
@@ -488,6 +537,38 @@ export async function pullRepo(meta: RepoMeta): Promise<void> {
 			throw new Error('Authentication failed. Check the token under Settings.');
 		}
 		throw err;
+	}
+}
+
+/**
+ * Fetch remote and fast-forward when safe (clean + behind only).
+ * Never throws for expected sync states — returns the latest status instead.
+ */
+export async function autoPullIfBehind(meta: RepoMeta): Promise<{
+	status: SyncStatus;
+	pulled: boolean;
+}> {
+	const pre = await getSyncStatus(meta);
+	if (!pre.clean) {
+		return { status: pre, pulled: false };
+	}
+
+	try {
+		await fetchRemote(meta);
+	} catch {
+		return { status: await getSyncStatus(meta), pulled: false };
+	}
+
+	const mid = await getSyncStatus(meta);
+	if (!(mid.behind > 0 && mid.ahead === 0)) {
+		return { status: mid, pulled: false };
+	}
+
+	try {
+		await pullRepo(meta);
+		return { status: await getSyncStatus(meta), pulled: true };
+	} catch {
+		return { status: await getSyncStatus(meta), pulled: false };
 	}
 }
 

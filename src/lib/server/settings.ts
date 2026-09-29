@@ -151,6 +151,20 @@ export async function toggleFavourite(repoId: string, path: string): Promise<str
 	return next;
 }
 
+/** Drop a path from favourites if present (e.g. after file delete). */
+export async function removeFavouritePath(repoId: string, path: string): Promise<void> {
+	const normalized = path.trim().replace(/^\/+|\/+$/g, '').replace(/\\/g, '/');
+	if (!normalized) return;
+	const settings = await getSettings();
+	const current = settings.favouritesByRepo[repoId] ?? [];
+	if (!current.includes(normalized)) return;
+	const next = current.filter((p) => p !== normalized);
+	const favouritesByRepo = { ...settings.favouritesByRepo };
+	if (next.length === 0) delete favouritesByRepo[repoId];
+	else favouritesByRepo[repoId] = next;
+	await saveSettings({ ...settings, favouritesByRepo });
+}
+
 export async function clearFavouritesForRepo(repoId: string): Promise<void> {
 	const settings = await getSettings();
 	if (!(repoId in settings.favouritesByRepo)) return;

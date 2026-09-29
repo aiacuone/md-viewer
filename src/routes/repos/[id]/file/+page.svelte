@@ -5,6 +5,7 @@
 	import SyncBar from '$lib/components/SyncBar.svelte';
 	import CommitModal from '$lib/components/CommitModal.svelte';
 	import PasteNotesModal from '$lib/components/PasteNotesModal.svelte';
+	import DeleteFileModal from '$lib/components/DeleteFileModal.svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
 	import BackLink from '$lib/components/BackLink.svelte';
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
@@ -26,6 +27,9 @@
 	let commitOpen = $state(false);
 	let syncOpen = $state(false);
 	let pasteOpen = $state(false);
+	let deleteOpen = $state(false);
+	let deleting = $state(false);
+	let deleteError = $state('');
 	let favourites = $state<string[]>([]);
 	let starBusy = $state(false);
 
@@ -119,6 +123,29 @@
 		await goto(`/repos/${data.repo.id}/file?path=${encodeURIComponent(path)}`);
 	}
 
+	async function confirmDelete() {
+		deleting = true;
+		deleteError = '';
+		errorMsg = '';
+		try {
+			const res = await fetch(
+				`/api/repos/${data.repo.id}/file?path=${encodeURIComponent(data.path)}`,
+				{ method: 'DELETE' }
+			);
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok) throw new Error(body.message || 'Delete failed');
+			deleteOpen = false;
+			const folder = parentFolder;
+			const q = folder ? `?path=${encodeURIComponent(folder)}` : '';
+			await goto(`/repos/${data.repo.id}${q}`);
+			await invalidateAll();
+		} catch (err) {
+			deleteError = err instanceof Error ? err.message : 'Delete failed';
+		} finally {
+			deleting = false;
+		}
+	}
+
 	async function toggleStar() {
 		starBusy = true;
 		errorMsg = '';
@@ -187,6 +214,16 @@
 		<div class="header-actions desktop-only">
 			<button type="button" onclick={() => (pasteOpen = true)}>Convert</button>
 			<button type="button" onclick={() => (syncOpen = true)}>Sync</button>
+			<button
+				type="button"
+				class="danger"
+				onclick={() => {
+					deleteError = '';
+					deleteOpen = true;
+				}}
+			>
+				Delete
+			</button>
 		</div>
 	</div>
 
@@ -314,6 +351,16 @@
 	<button type="button" class="action-convert" onclick={() => (pasteOpen = true)}>Convert</button>
 	<button type="button" onclick={() => (syncOpen = true)}>Sync</button>
 	<button type="button" onclick={toggleDiff}>{showDiff ? 'Hide' : 'Diff'}</button>
+	<button
+		type="button"
+		class="danger action-delete"
+		onclick={() => {
+			deleteError = '';
+			deleteOpen = true;
+		}}
+	>
+		Delete
+	</button>
 </nav>
 
 <CommitModal repoId={data.repo.id} bind:open={commitOpen} onCommitted={refresh} />
@@ -322,6 +369,14 @@
 	folder={parentFolder}
 	bind:open={pasteOpen}
 	onSaved={onPasteSaved}
+/>
+<DeleteFileModal
+	filePath={data.path}
+	bind:open={deleteOpen}
+	busy={deleting}
+	errorMsg={deleteError}
+	hasUnsaved={dirty}
+	onConfirm={confirmDelete}
 />
 <SyncBar
 	repoId={data.repo.id}
