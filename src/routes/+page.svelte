@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
+	import Icon from '$lib/components/Icon.svelte';
 	import type { RepoPublic } from '$lib/types';
 
 	let { data } = $props();
@@ -86,7 +87,7 @@
 			<p class="muted">No repositories yet.</p>
 			<div class="row">
 				<a class="button-link" href="/repos/new"
-					><button class="primary" type="button">Add repository</button></a
+					><button class="primary with-icon" type="button"><Icon name="plus" />Add repository</button></a
 				>
 			</div>
 		</div>
@@ -109,7 +110,7 @@
 						aria-label={`Details for ${repo.name}`}
 						title="Details"
 					>
-						<span aria-hidden="true">⋮</span>
+						<Icon name="more" />
 					</button>
 				</article>
 			{/each}
@@ -135,7 +136,9 @@
 		>
 			<div class="dialog-head">
 				<h2 id="repo-details-title">{detailsRepo.name}</h2>
-				<button type="button" class="close" onclick={closeDetails}>Close</button>
+				<button type="button" class="icon-btn" aria-label="Close" title="Close" onclick={closeDetails}>
+					<Icon name="close" />
+				</button>
 			</div>
 			<div class="meta">
 				<p class="muted label">Remote URL</p>
@@ -148,18 +151,23 @@
 			<div class="row dialog-actions">
 				<button
 					type="button"
+					class="icon-btn"
 					disabled={defaultBusy || defaultRepoId === detailsRepo.id}
+					aria-label={defaultRepoId === detailsRepo.id ? 'Default repository' : 'Set as default'}
+					title={defaultRepoId === detailsRepo.id ? 'Default' : 'Set default'}
 					onclick={() => setDefault(detailsRepo!.id)}
 				>
-					{defaultRepoId === detailsRepo.id ? 'Default' : 'Set default'}
+					<Icon name="check" />
 				</button>
 				<button
-					class="danger compact"
+					class="danger icon-btn"
 					type="button"
 					disabled={busyId === detailsRepo.id}
+					aria-label={busyId === detailsRepo.id ? 'Removing' : 'Remove'}
+					title={busyId === detailsRepo.id ? 'Removing' : 'Remove'}
 					onclick={() => removeRepo(detailsRepo!.id, detailsRepo!.name)}
 				>
-					{busyId === detailsRepo.id ? 'Removing…' : 'Remove'}
+					<Icon name="trash" />
 				</button>
 			</div>
 		</div>
@@ -262,11 +270,6 @@
 		font-size: 1.2rem;
 	}
 
-	.close {
-		padding: 0.35rem 0.65rem;
-		font-size: 0.85rem;
-	}
-
 	.meta {
 		display: grid;
 		gap: 0.35rem;
@@ -292,11 +295,6 @@
 
 	.dialog-actions {
 		justify-content: flex-end;
-	}
-
-	.dialog-actions .compact {
-		padding: 0.3rem 0.6rem;
-		font-size: 0.8rem;
 	}
 
 	@media (max-width: 640px) {

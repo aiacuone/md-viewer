@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { DiffFile } from '$lib/types';
+	import Icon from '$lib/components/Icon.svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
 	import { displayName } from '$lib/display';
 	import { statusLabel, suggestCommitMessage } from '$lib/diff';
@@ -104,7 +105,9 @@
 		>
 			<div class="row" style="justify-content: space-between">
 				<h2>Commit changes</h2>
-				<button type="button" onclick={close}>Close</button>
+				<button type="button" class="icon-btn" aria-label="Close" title="Close" onclick={close}>
+					<Icon name="close" />
+				</button>
 			</div>
 
 			{#if loading}
@@ -133,7 +136,9 @@
 				<label>
 					<span class="message-label">
 						Commit message
-						<button type="button" class="suggest" onclick={applySuggestion}>Suggest</button>
+						<button type="button" class="suggest" aria-label="Suggest" title="Suggest" onclick={applySuggestion}>
+							<Icon name="spark" />
+						</button>
 					</span>
 					<textarea
 						bind:value={message}
@@ -150,11 +155,12 @@
 
 			<div class="row">
 				<button
-					class="primary"
+					class="primary with-icon"
 					type="button"
 					disabled={committing || diffs.length === 0}
 					onclick={commit}
 				>
+					<Icon name="push" />
 					{committing ? 'Committing + pushing…' : 'Commit + push'}
 				</button>
 			</div>
@@ -193,15 +199,19 @@
 	}
 
 	.suggest {
-		font-size: 0.8rem;
-		padding: 0.2rem 0.5rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
 		border: 0;
 		background: transparent;
 		color: var(--accent);
 	}
 
 	.suggest:hover {
-		text-decoration: underline;
+		color: var(--ink);
 	}
 
 	.diff-layout {

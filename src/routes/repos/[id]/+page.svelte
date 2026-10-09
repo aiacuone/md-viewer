@@ -5,6 +5,7 @@
 	import PasteNotesModal from '$lib/components/PasteNotesModal.svelte';
 	import BackLink from '$lib/components/BackLink.svelte';
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { displayName, treeEntryLabel } from '$lib/display';
 	import { goBack } from '$lib/navigation';
 
@@ -32,6 +33,8 @@
 		});
 		return entries;
 	});
+	const folders = $derived(sortedTree.filter((entry) => entry.type === 'dir'));
+	const files = $derived(sortedTree.filter((entry) => entry.type === 'file'));
 
 	const crumbs = $derived.by(() => {
 		const parts = data.path ? data.path.split('/').filter(Boolean) : [];
@@ -92,19 +95,29 @@
 
 <section class="stack repo-page">
 	<div class="header-row">
-		<div>
-			<div class="desktop-only">
-				<BackLink fallback="/?list=1" />
+		<div class="title-block">
+			<div class="title-row">
+				<div class="desktop-only">
+					<BackLink fallback="/?list=1" />
+				</div>
+				<h1>{data.repo.name}</h1>
 			</div>
-			<h1>{data.repo.name}</h1>
 			{#if data.repo.contentRoot}
 				<p class="muted">content root <code>{data.repo.contentRoot}</code></p>
 			{/if}
 		</div>
 		<div class="header-actions desktop-only">
-			<button type="button" onclick={() => (pasteOpen = true)}>Convert</button>
-			<button type="button" class="sync-trigger" onclick={() => (syncOpen = true)}>
-				Sync
+			<button
+				type="button"
+				class="icon-btn"
+				aria-label="Convert"
+				title="Convert"
+				onclick={() => (pasteOpen = true)}
+			>
+				<Icon name="convert" />
+			</button>
+			<button type="button" class="sync-trigger" aria-label="Sync" title="Sync" onclick={() => (syncOpen = true)}>
+				<Icon name="sync" />
 				{#if data.status}
 					<span class="muted"
 						>{data.status.branch} · {data.status.uncommitted.length
@@ -129,25 +142,40 @@
 		<p class="error">{starError}</p>
 	{/if}
 
-	<div class="card tree">
-		{#if sortedTree.length === 0}
+	{#if sortedTree.length === 0}
+		<div class="card tree">
 			<p class="muted">No markdown files or folders here.</p>
-		{:else}
-			<ul>
-				{#each sortedTree as entry}
-					<li class="row-item">
-						{#if entry.type === 'dir'}
+		</div>
+	{:else}
+		{#if folders.length}
+			<div class="card tree">
+				<ul>
+					{#each folders as entry}
+						<li class="row-item">
 							<button type="button" class="row-main dir" onclick={() => openPath(entry.path)}>
-								<span>{entry.name}<span class="dir-slash">/</span></span>
-							</button>
-						{:else}
-							<a
-								class="row-main"
-								href={`/repos/${data.repo.id}/file?path=${encodeURIComponent(entry.path)}`}
-							>
 								{treeEntryLabel(entry)}
-							</a>
-						{/if}
+							</button>
+							<FavouriteStar
+								favourited={favouriteSet.has(entry.path)}
+								busy={starBusy === entry.path}
+								label={treeEntryLabel(entry)}
+								onclick={() => toggleStar(entry.path)}
+							/>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+		{#if files.length}
+			<ul class="tree">
+				{#each files as entry}
+					<li class="row-item">
+						<a
+							class="row-main"
+							href={`/repos/${data.repo.id}/file?path=${encodeURIComponent(entry.path)}`}
+						>
+							{treeEntryLabel(entry)}
+						</a>
 						<FavouriteStar
 							favourited={favouriteSet.has(entry.path)}
 							busy={starBusy === entry.path}
@@ -158,21 +186,18 @@
 				{/each}
 			</ul>
 		{/if}
-	</div>
+	{/if}
 </section>
 
 <nav class="action-bar mobile-only" aria-label="Browse actions">
-	<button type="button" class="action-back" onclick={() => goBack('/?list=1')} aria-label="Back">
-		<svg viewBox="0 0 14 14" aria-hidden="true">
-			<path
-				d="M8.75 2.25 3.5 7l5.25 4.75"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.75"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			/>
-		</svg>
+	<button
+		type="button"
+		class="icon-btn"
+		onclick={() => goBack('/?list=1')}
+		aria-label="Back"
+		title="Back"
+	>
+		<Icon name="back" />
 	</button>
 	<div class="action-crumbs" aria-label="Breadcrumb">
 		{#each crumbs as c, i}
@@ -180,10 +205,18 @@
 			<button type="button" class="crumb" onclick={() => openCrumb(c)}>{c.label}</button>
 		{/each}
 	</div>
-	<button type="button" class="primary action-convert" onclick={() => (pasteOpen = true)}>
-		Convert
+	<button
+		type="button"
+		class="primary icon-btn"
+		aria-label="Convert"
+		title="Convert"
+		onclick={() => (pasteOpen = true)}
+	>
+		<Icon name="convert" />
 	</button>
-	<button type="button" class="action-sync" onclick={() => (syncOpen = true)}>Sync</button>
+	<button type="button" class="icon-btn" aria-label="Sync" title="Sync" onclick={() => (syncOpen = true)}>
+		<Icon name="sync" />
+	</button>
 </nav>
 
 <SyncBar
@@ -205,8 +238,16 @@
 
 <style>
 	h1 {
-		margin: 0.35rem 0;
+		margin: 0;
 		letter-spacing: -0.03em;
+		min-width: 0;
+	}
+
+	.title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		min-width: 0;
 	}
 
 	.header-row {
@@ -242,7 +283,8 @@
 		color: var(--accent);
 	}
 
-	.tree ul {
+	.tree ul,
+	ul.tree {
 		list-style: none;
 		margin: 0;
 		padding: 0;
@@ -281,11 +323,6 @@
 		font-weight: 600;
 	}
 
-	.dir-slash {
-		margin-left: 0.35em;
-		color: var(--ink-muted);
-	}
-
 	code {
 		font-family: var(--font-mono);
 		font-size: 0.85em;
@@ -305,31 +342,6 @@
 		border-top: 1px solid var(--border);
 		backdrop-filter: blur(10px);
 		box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
-	}
-
-	.action-back {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		flex: 0 0 auto;
-		width: 2.4rem;
-		height: 2.4rem;
-		padding: 0;
-		border: 1px solid var(--border);
-		border-radius: 8px;
-		background: var(--bg-soft);
-		color: var(--ink);
-		text-decoration: none;
-	}
-
-	.action-back:hover {
-		text-decoration: none;
-		color: var(--ink);
-	}
-
-	.action-back svg {
-		width: 0.95rem;
-		height: 0.95rem;
 	}
 
 	.action-crumbs {
@@ -358,15 +370,6 @@
 	.crumb-sep {
 		flex: 0 0 auto;
 		font-size: 0.85rem;
-	}
-
-	.action-sync,
-	.action-convert {
-		flex: 0 0 auto;
-		flex-shrink: 0;
-		padding: 0.5rem 0.65rem;
-		font-size: 0.85rem;
-		white-space: nowrap;
 	}
 
 	@media (max-width: 767px) {

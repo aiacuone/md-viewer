@@ -9,6 +9,7 @@
 	import DiffView from '$lib/components/DiffView.svelte';
 	import BackLink from '$lib/components/BackLink.svelte';
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import type { DiffFile } from '$lib/types';
 	import { displayName, treeEntryLabel } from '$lib/display';
 	import { goBack } from '$lib/navigation';
@@ -197,10 +198,10 @@
 <section class="stack file-page">
 	<div class="header-row">
 		<div>
-			<div class="desktop-only">
-				<BackLink fallback={repoHref} />
-			</div>
 			<div class="title-row">
+				<div class="desktop-only">
+					<BackLink fallback={repoHref} />
+				</div>
 				<h1>{fileTitle}</h1>
 				<FavouriteStar
 					favourited={favourited}
@@ -212,43 +213,70 @@
 			<p class="muted file-path" title={data.path}>{data.path}</p>
 		</div>
 		<div class="header-actions desktop-only">
-			<button type="button" onclick={() => (pasteOpen = true)}>Convert</button>
-			<button type="button" onclick={() => (syncOpen = true)}>Sync</button>
+			<button type="button" class="icon-btn" aria-label="Convert" title="Convert" onclick={() => (pasteOpen = true)}>
+				<Icon name="convert" />
+			</button>
+			<button type="button" class="icon-btn" aria-label="Sync" title="Sync" onclick={() => (syncOpen = true)}>
+				<Icon name="sync" />
+			</button>
 			<button
 				type="button"
-				class="danger"
+				class="danger icon-btn"
+				aria-label="Delete"
+				title="Delete"
 				onclick={() => {
 					deleteError = '';
 					deleteOpen = true;
 				}}
 			>
-				Delete
+				<Icon name="trash" />
 			</button>
 		</div>
 	</div>
 
 	<div class="row desktop-only">
-		<button class="primary" type="button" disabled={saving || !dirty} onclick={save}>
-			{saving ? 'Saving…' : 'Save'}
+		<button
+			class="primary icon-btn action-save"
+			type="button"
+			disabled={saving || !dirty}
+			aria-label={saving ? 'Saving' : 'Save'}
+			title={saving ? 'Saving' : 'Save'}
+			onclick={save}
+		>
+			<Icon name="save" />
+			{#if dirty && !saving}<span class="dirty-dot" aria-hidden="true"></span>{/if}
 		</button>
 		<div class="view-toggle" role="group" aria-label="View mode">
 			<button
 				type="button"
+				class="icon-btn"
 				class:active={viewMode === 'preview'}
+				aria-label="Preview"
+				title="Preview"
 				onclick={() => (viewMode = 'preview')}
 			>
-				Preview
+				<Icon name="preview" />
 			</button>
 			<button
 				type="button"
+				class="icon-btn"
 				class:active={viewMode === 'edit'}
+				aria-label="Edit"
+				title="Edit"
 				onclick={() => (viewMode = 'edit')}
 			>
-				Edit
+				<Icon name="edit" />
 			</button>
 		</div>
-		<button type="button" onclick={toggleDiff}>
-			{showDiff ? 'Hide diff' : 'View diff'}
+		<button
+			type="button"
+			class="icon-btn"
+			class:active={showDiff}
+			aria-label={showDiff ? 'Hide diff' : 'View diff'}
+			title={showDiff ? 'Hide diff' : 'View diff'}
+			onclick={toggleDiff}
+		>
+			<Icon name="diff" />
 		</button>
 	</div>
 
@@ -288,12 +316,16 @@
 			{#if savedDiff || unsavedDiff}
 				<div class="row">
 					{#if unsavedDiff}
-						<button type="button" onclick={() => applyContent(savedContent)}>
+						<button type="button" class="with-icon" onclick={() => applyContent(savedContent)}>
+							<Icon name="undo" />
 							Discard unsaved edits
 						</button>
 					{/if}
 					{#if savedDiff}
-						<button type="button" onclick={revertToHead}>Revert file to last commit</button>
+						<button type="button" class="with-icon" onclick={revertToHead}>
+							<Icon name="undo" />
+							Revert file to last commit
+						</button>
 					{/if}
 				</div>
 			{/if}
@@ -316,50 +348,75 @@
 </section>
 
 <nav class="action-bar mobile-only" aria-label="File actions">
-	<button type="button" class="action-back" onclick={() => goBack(repoHref)} aria-label="Back">
-		<svg viewBox="0 0 14 14" aria-hidden="true">
-			<path
-				d="M8.75 2.25 3.5 7l5.25 4.75"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.75"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			/>
-		</svg>
+	<button type="button" class="icon-btn action-back" onclick={() => goBack(repoHref)} aria-label="Back" title="Back">
+		<Icon name="back" />
 	</button>
 	<div class="view-toggle" role="group" aria-label="View mode">
 		<button
 			type="button"
+			class="icon-btn"
 			class:active={viewMode === 'preview'}
+			aria-label="Preview"
+			title="Preview"
 			onclick={() => (viewMode = 'preview')}
 		>
-			Preview
+			<Icon name="preview" />
 		</button>
 		<button
 			type="button"
+			class="icon-btn"
 			class:active={viewMode === 'edit'}
+			aria-label="Edit"
+			title="Edit"
 			onclick={() => (viewMode = 'edit')}
 		>
-			Edit
+			<Icon name="edit" />
 		</button>
 	</div>
-	<button class="primary action-save" type="button" disabled={saving || !dirty} onclick={save}>
-		{saving ? '…' : 'Save'}
+	<button
+		class="primary icon-btn action-save"
+		type="button"
+		disabled={saving || !dirty}
+		aria-label={saving ? 'Saving' : 'Save'}
+		title={saving ? 'Saving' : 'Save'}
+		onclick={save}
+	>
+		<Icon name="save" />
 		{#if dirty && !saving}<span class="dirty-dot" aria-hidden="true"></span>{/if}
 	</button>
-	<button type="button" class="action-convert" onclick={() => (pasteOpen = true)}>Convert</button>
-	<button type="button" onclick={() => (syncOpen = true)}>Sync</button>
-	<button type="button" onclick={toggleDiff}>{showDiff ? 'Hide' : 'Diff'}</button>
 	<button
 		type="button"
-		class="danger action-delete"
+		class="icon-btn"
+		aria-label="Convert"
+		title="Convert"
+		onclick={() => (pasteOpen = true)}
+	>
+		<Icon name="convert" />
+	</button>
+	<button type="button" class="icon-btn" aria-label="Sync" title="Sync" onclick={() => (syncOpen = true)}>
+		<Icon name="sync" />
+	</button>
+	<button
+		type="button"
+		class="icon-btn"
+		class:active={showDiff}
+		aria-label={showDiff ? 'Hide diff' : 'View diff'}
+		title={showDiff ? 'Hide diff' : 'View diff'}
+		onclick={toggleDiff}
+	>
+		<Icon name="diff" />
+	</button>
+	<button
+		type="button"
+		class="danger icon-btn"
+		aria-label="Delete"
+		title="Delete"
 		onclick={() => {
 			deleteError = '';
 			deleteOpen = true;
 		}}
 	>
-		Delete
+		<Icon name="trash" />
 	</button>
 </nav>
 
@@ -388,7 +445,7 @@
 />
 <style>
 	h1 {
-		margin: 0.35rem 0;
+		margin: 0;
 		font-size: 1.25rem;
 		word-break: break-all;
 	}
@@ -574,8 +631,9 @@
 		z-index: 40;
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
-		padding: 0.55rem 0.65rem calc(0.55rem + env(safe-area-inset-bottom));
+		justify-content: space-between;
+		gap: 0.2rem;
+		padding: 0.4rem 0.4rem calc(0.4rem + env(safe-area-inset-bottom));
 		background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
 		border-top: 1px solid var(--border);
 		backdrop-filter: blur(10px);
@@ -583,52 +641,21 @@
 	}
 
 	.action-bar .view-toggle {
-		flex: 1 1 auto;
-		min-width: 0;
-	}
-
-	.action-bar .view-toggle button {
-		flex: 1;
-		padding: 0.5rem 0.35rem;
-		font-size: 0.85rem;
-	}
-
-	.action-bar > button,
-	.action-back {
 		flex: 0 0 auto;
-		flex-shrink: 0;
-		padding: 0.5rem 0.55rem;
-		font-size: 0.85rem;
-		white-space: nowrap;
 	}
 
-	.action-back {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 2.4rem;
-		height: 2.4rem;
-		padding: 0;
-		border: 1px solid var(--border);
-		border-radius: 8px;
-		background: var(--bg-soft);
-		color: var(--ink);
-		text-decoration: none;
+	.action-bar button.icon-btn {
+		width: 2rem;
+		height: 2rem;
 	}
 
-	.action-back:hover {
-		text-decoration: none;
-		color: var(--ink);
-	}
-
-	.action-back svg {
-		width: 0.95rem;
-		height: 0.95rem;
+	.action-bar button.active {
+		background: var(--bg);
+		color: var(--accent);
 	}
 
 	.action-save {
 		position: relative;
-		min-width: 3.4rem;
 	}
 
 	.dirty-dot {

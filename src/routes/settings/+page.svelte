@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { goBack } from '$lib/navigation';
+	import BackLink from '$lib/components/BackLink.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 
 	let { data } = $props();
 
@@ -194,20 +195,10 @@
 
 <section class="stack" style="max-width: 520px">
 	<div>
-		<button type="button" class="back-link" onclick={() => goBack()}>
-			<svg viewBox="0 0 14 14" aria-hidden="true">
-				<path
-					d="M8.75 2.25 3.5 7l5.25 4.75"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.75"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				/>
-			</svg>
-			Back
-		</button>
-		<h1>Settings</h1>
+		<div class="title-row">
+			<BackLink fallback="/" />
+			<h1>Settings</h1>
+		</div>
 		<p class="muted">Git author, access token, and DeepSeek key used for all repositories.</p>
 	</div>
 
@@ -227,7 +218,10 @@
 		{#if saved}
 			<p class="muted">Saved.</p>
 		{/if}
-		<button class="primary" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+		<button class="primary with-icon" type="submit" disabled={busy}>
+			<Icon name="save" />
+			{busy ? 'Saving…' : 'Save'}
+		</button>
 	</form>
 
 	<form class="card stack" onsubmit={saveToken}>
@@ -251,11 +245,14 @@
 			<p class="muted">Token updated.</p>
 		{/if}
 		<div class="row">
-			<button class="primary" type="submit" disabled={tokenBusy}>
+			<button class="primary with-icon" type="submit" disabled={tokenBusy}>
+				<Icon name="save" />
 				{tokenBusy ? 'Saving…' : hasToken ? 'Replace token' : 'Save token'}
 			</button>
 			{#if hasToken}
-				<button type="button" disabled={tokenBusy} onclick={clearToken}>Clear</button>
+				<button type="button" class="icon-btn" aria-label="Clear token" title="Clear token" disabled={tokenBusy} onclick={clearToken}>
+					<Icon name="trash" />
+				</button>
 			{/if}
 		</div>
 	</form>
@@ -282,23 +279,29 @@
 			<p class="muted">AI key updated.</p>
 		{/if}
 		<div class="row">
-			<button class="primary" type="submit" disabled={aiBusy}>
+			<button class="primary with-icon" type="submit" disabled={aiBusy}>
+				<Icon name="save" />
 				{aiBusy ? 'Saving…' : hasAiKey ? 'Replace key' : 'Save key'}
 			</button>
 			{#if hasAiKey}
-				<button type="button" disabled={aiBusy} onclick={clearAiKey}>Clear</button>
+				<button type="button" class="icon-btn" aria-label="Clear API key" title="Clear API key" disabled={aiBusy} onclick={clearAiKey}>
+					<Icon name="trash" />
+				</button>
 			{/if}
 		</div>
 	</form>
 </section>
 
 <style>
-	.back-link {
+	.title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
 		margin-bottom: 0.35rem;
 	}
 
 	h1 {
-		margin: 0 0 0.35rem;
+		margin: 0;
 	}
 
 	h2 {

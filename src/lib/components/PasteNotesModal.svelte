@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Marked } from 'marked';
 	import { stripFrontMatter } from '$lib/markdown';
+	import Icon from '$lib/components/Icon.svelte';
 
 	type TreeEntry = { name: string; path: string; type: 'file' | 'dir' };
 
@@ -26,7 +27,10 @@
 	let mdFiles = $state<TreeEntry[]>([]);
 	let markdown = $state('');
 	let suggestedPath = $state('');
-	let busy = $state<'convert' | 'save' | 'tree' | null>(null);
+	let busy = $state<'convert' | 'save' | 'tree' | 'adjust' | null>(null);
+	let step = $state<'compose' | 'review'>('compose');
+	let tab = $state<'markdown' | 'preview'>('markdown');
+	let adjustInstruction = $state('');
 	let errorMsg = $state('');
 	let needsAiKey = $state(false);
 
@@ -55,6 +59,9 @@
 			suggestedPath = '';
 			errorMsg = '';
 			needsAiKey = false;
+			step = 'compose';
+			tab = 'markdown';
+			adjustInstruction = '';
 			void openFolder(folder);
 		}
 	});
@@ -161,11 +168,52 @@
 			if (mode === 'append' && appendPath) {
 				suggestedPath = appendPath;
 			}
+			tab = 'markdown';
+			adjustInstruction = '';
+			step = 'review';
 		} catch (err) {
 			errorMsg = err instanceof Error ? err.message : 'Conversion failed';
 		} finally {
 			busy = null;
 		}
+	}
+
+	async function adjust() {
+		const instruction = adjustInstruction.trim();
+		if (!instruction || !markdown.trim()) return;
+		busy = 'adjust';
+		errorMsg = '';
+		needsAiKey = false;
+		try {
+			const res = await fetch(`/api/repos/${repoId}/ai/markdown`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ markdown, instruction })
+			});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok) {
+				needsAiKey = Boolean(body.needsAiKey);
+				throw new Error(body.message || 'Adjustment failed');
+			}
+			markdown = body.markdown ?? markdown;
+			adjustInstruction = '';
+		} catch (err) {
+			errorMsg = err instanceof Error ? err.message : 'Adjustment failed';
+		} finally {
+			busy = null;
+		}
+	}
+
+	function onAdjustKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			void adjust();
+		}
+	}
+
+	function backToCompose() {
+		errorMsg = '';
+		step = 'compose';
 	}
 
 	async function save() {
@@ -236,10 +284,13 @@
 			onkeydown={(e) => e.stopPropagation()}
 		>
 			<div class="row" style="justify-content: space-between">
-				<h2>Convert</h2>
-				<button type="button" onclick={close}>Close</button>
+				<h2>{step === 'review' ? 'Review markdown' : 'Convert'}</h2>
+				<button type="button" class="icon-btn" aria-label="Close" title="Close" onclick={close}>
+					<Icon name="close" />
+				</button>
 			</div>
 
+			{#if step === 'compose'}
 			<label>
 				Notes
 				<textarea rows="7" bind:value={text} placeholder="Paste or type notes to convert…"></textarea>
@@ -259,11 +310,13 @@
 					{#if parentPath !== null}
 						<button
 							type="button"
-							class="back-btn"
+							class="icon-btn back-btn"
 							disabled={busy !== null}
+							aria-label="Back"
+							title="Back"
 							onclick={() => openFolder(parentPath ?? '')}
 						>
-							Back
+							<Icon name="back" />
 						</button>
 					{/if}
 				</div>
@@ -298,8 +351,15 @@
 						disabled={busy !== null}
 						onkeydown={onSubfolderKeydown}
 					/>
-					<button type="button" disabled={busy !== null} onclick={addSubfolder}>
-						Add & open
+					<button
+						type="button"
+						class="icon-btn"
+						disabled={busy !== null}
+						aria-label="Add and open"
+						title="Add and open"
+						onclick={addSubfolder}
+					>
+						<Icon name="plus" />
 					</button>
 				</div>
 			</div>
@@ -341,28 +401,100 @@
 			{/if}
 
 			<div class="row actions">
-				<button type="button" class="primary" disabled={busy !== null} onclick={convert}>
+				<button type="button" class="primary with-icon" disabled={busy !== null} onclick={convert}>
+					<Icon name="convert" />
 					{busy === 'convert' ? 'Converting…' : 'Convert to markdown'}
 				</button>
 			</div>
 
-			{#if markdown}
+			{:else}
 				<div class="dest-banner">
-					<p class="muted label">Saving to</p>
+					<p class="muted label">{mode === 'append' ? 'Appending to' : 'Saving to'}</p>
 					<p class="dest-path">
 						{mode === 'append' ? appendPath || '…' : suggestedPath || '…'}
 					</p>
 				</div>
-				<label>
-					Markdown
-					<textarea class="md-edit" rows="8" bind:value={markdown}></textarea>
-				</label>
-				{#if previewHtml}
+
+				<div class="tabs" role="tablist">
+					<button
+						type="button"
+						role="tab"
+						class="tab icon-btn"
+						class:active={tab === 'markdown'}
+						aria-selected={tab === 'markdown'}
+						aria-label="Markdown"
+						title="Markdown"
+						onclick={() => (tab = 'markdown')}
+					>
+						<Icon name="edit" />
+					</button>
+					<button
+						type="button"
+						role="tab"
+						class="tab icon-btn"
+						class:active={tab === 'preview'}
+						aria-selected={tab === 'preview'}
+						aria-label="Preview"
+						title="Preview"
+						onclick={() => (tab = 'preview')}
+					>
+						<Icon name="preview" />
+					</button>
+				</div>
+
+				{#if tab === 'markdown'}
+					<textarea
+						class="md-edit"
+						rows="14"
+						aria-label="Markdown"
+						bind:value={markdown}
+						disabled={busy === 'adjust'}
+					></textarea>
+				{:else}
 					<div class="preview">{@html previewHtml}</div>
 				{/if}
-				<button type="button" class="primary" disabled={busy !== null} onclick={save}>
-					{busy === 'save' ? 'Saving…' : 'Save'}
-				</button>
+
+				<div class="adjust-row">
+					<input
+						bind:value={adjustInstruction}
+						placeholder="Ask AI to adjust (e.g. make the list shorter)"
+						disabled={busy !== null}
+						onkeydown={onAdjustKeydown}
+					/>
+					<button
+						type="button"
+						class="icon-btn"
+						disabled={busy !== null || !adjustInstruction.trim()}
+						aria-label={busy === 'adjust' ? 'Adjusting' : 'Apply'}
+						title={busy === 'adjust' ? 'Adjusting' : 'Apply'}
+						onclick={adjust}
+					>
+						<Icon name="spark" />
+					</button>
+				</div>
+
+				<div class="row review-actions">
+					<button
+						type="button"
+						class="icon-btn"
+						disabled={busy !== null}
+						aria-label="Back"
+						title="Back"
+						onclick={backToCompose}
+					>
+						<Icon name="back" />
+					</button>
+					<button
+						type="button"
+						class="primary icon-btn"
+						disabled={busy !== null}
+						aria-label={busy === 'save' ? 'Saving' : 'Save'}
+						title={busy === 'save' ? 'Saving' : 'Save'}
+						onclick={save}
+					>
+						<Icon name="save" />
+					</button>
+				</div>
 			{/if}
 
 			{#if errorMsg}
@@ -389,7 +521,7 @@
 	}
 
 	.dialog {
-		width: min(560px, 100%);
+		width: min(640px, 100%);
 		max-height: min(92vh, 820px);
 		overflow: auto;
 		display: grid;
@@ -552,6 +684,43 @@
 	.md-edit {
 		font-family: var(--font-mono);
 		font-size: 0.85rem;
+		min-height: 18rem;
+	}
+
+	.tabs {
+		display: flex;
+		gap: 0.25rem;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.tab {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		border: 0;
+		border-bottom: 2px solid transparent;
+		border-radius: 0;
+		background: none;
+		padding: 0;
+		margin-bottom: -1px;
+	}
+
+	.tab.active {
+		border-bottom-color: var(--accent);
+		color: var(--accent);
+	}
+
+	.adjust-row {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 0.45rem;
+		align-items: center;
+	}
+
+	.review-actions {
+		justify-content: space-between;
 	}
 
 	.preview {
@@ -560,7 +729,8 @@
 		border-radius: 8px;
 		background: var(--bg);
 		font-size: 0.92rem;
-		max-height: 200px;
+		min-height: 18rem;
+		max-height: 50vh;
 		overflow: auto;
 	}
 

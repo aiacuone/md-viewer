@@ -13,10 +13,49 @@ function slugify(input: string): string {
 	return base || 'notes';
 }
 
+function cleanMarkdown(raw: unknown): string {
+	let markdown = String(raw ?? '').trim();
+	markdown = markdown.replace(/^```(?:markdown|md)?\n?/i, '').replace(/\n?```$/i, '');
+	if (markdown && !markdown.endsWith('\n')) markdown += '\n';
+	return markdown;
+}
+
+async function adjustMarkdown(markdown: string, instruction: string): Promise<string> {
+	const result = await chatJson<{ markdown?: string }>({
+		messages: [
+			{
+				role: 'system',
+				content: `You revise Markdown notes for a personal notes app according to the user's instruction.
+Return JSON: {"markdown":"..."}
+Rules:
+- Apply only the requested change; keep everything else as-is.
+- Keep YAML frontmatter unless the instruction asks to change it.
+- Do not wrap markdown in code fences.
+- Preserve the user's meaning; do not invent facts.`
+			},
+			{ role: 'user', content: JSON.stringify({ instruction, markdown }) }
+		],
+		temperature: 0.3,
+		maxTokens: 6000
+	});
+	const revised = cleanMarkdown(result.markdown);
+	if (!revised) error(400, 'AI returned empty markdown');
+	return revised;
+}
+
 export const POST: RequestHandler = async ({ params, request }) => {
 	try {
 		await getRepoOrThrow(params.id);
 		const body = await request.json();
+
+		if (body.instruction !== undefined) {
+			const instruction = String(body.instruction ?? '').trim();
+			const current = String(body.markdown ?? '');
+			if (!instruction) error(400, 'Describe the adjustment first');
+			if (!current.trim()) error(400, 'Nothing to adjust');
+			return json({ markdown: await adjustMarkdown(current, instruction) });
+		}
+
 		const text = String(body.text ?? '').trim();
 		const folder = String(body.folder ?? '')
 			.trim()
@@ -59,10 +98,8 @@ Rules:
 			maxTokens: 6000
 		});
 
-		let markdown = String(result.markdown ?? '').trim();
+		const markdown = cleanMarkdown(result.markdown);
 		if (!markdown) error(400, 'AI returned empty markdown');
-		markdown = markdown.replace(/^```(?:markdown|md)?\n?/i, '').replace(/\n?```$/i, '');
-		if (!markdown.endsWith('\n')) markdown += '\n';
 
 		let filename = String(result.filename ?? '').trim();
 		if (!/\.md$/i.test(filename)) {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ResolveOption, SyncStatus } from '$lib/types';
+	import Icon from '$lib/components/Icon.svelte';
 
 	let {
 		repoId,
@@ -157,8 +158,8 @@
 </script>
 
 {#if showTrigger}
-	<button type="button" class="sync-trigger {triggerClass}" onclick={() => (open = true)}>
-		Sync
+	<button type="button" class="sync-trigger {triggerClass}" aria-label="Sync" title="Sync" onclick={() => (open = true)}>
+		<Icon name="sync" />
 		<span class="muted">{label}</span>
 	</button>
 {/if}
@@ -181,26 +182,43 @@
 		>
 			<div class="row" style="justify-content: space-between">
 				<h2>Sync</h2>
-				<button type="button" onclick={close}>Close</button>
+				<button type="button" class="icon-btn" aria-label="Close" title="Close" onclick={close}>
+					<Icon name="close" />
+				</button>
 			</div>
 
 			<p class="status muted">{label}</p>
 
 			<div class="row actions">
-				<button type="button" disabled={busy !== null} onclick={pull}>
-					{busy === 'pull' ? 'Pulling…' : 'Pull'}
+				<button
+					type="button"
+					class="icon-btn"
+					disabled={busy !== null}
+					aria-label={busy === 'pull' ? 'Pulling' : 'Pull'}
+					title={busy === 'pull' ? 'Pulling' : 'Pull'}
+					onclick={pull}
+				>
+					<Icon name="pull" />
 				</button>
 				{#if canPush}
-					<button type="button" disabled={busy !== null} onclick={pushOnly}>
-						{busy === 'push' ? 'Pushing…' : 'Push'}
+					<button
+						type="button"
+						class="icon-btn"
+						disabled={busy !== null}
+						aria-label={busy === 'push' ? 'Pushing' : 'Push'}
+						title={busy === 'push' ? 'Pushing' : 'Push'}
+						onclick={pushOnly}
+					>
+						<Icon name="push" />
 					</button>
 				{/if}
 				<button
-					class="primary"
+					class="primary with-icon"
 					type="button"
 					disabled={busy !== null || !canCommit}
 					onclick={openCommit}
 				>
+					<Icon name="push" />
 					Commit + push
 				</button>
 			</div>
@@ -228,15 +246,17 @@
 							</label>
 						{/each}
 						<button
-							class="primary"
+							class="primary with-icon"
 							type="button"
 							disabled={busy !== null || !selected}
 							onclick={applyResolve}
 						>
+							<Icon name="check" />
 							{busy === 'apply' ? 'Applying…' : 'Apply & push'}
 						</button>
 					{:else if !needsAiKey}
-						<button type="button" disabled={busy !== null} onclick={loadOptions}>
+						<button type="button" class="with-icon" disabled={busy !== null} onclick={loadOptions}>
+							<Icon name="spark" />
 							Get AI options
 						</button>
 					{/if}

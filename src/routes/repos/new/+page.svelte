@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import Icon from '$lib/components/Icon.svelte';
 
 	let remoteUrl = $state('');
 	let name = $state('');
@@ -74,7 +75,8 @@
 		{/if}
 
 		<div class="row">
-			<button class="primary" type="submit" disabled={busy}>
+			<button class="primary with-icon" type="submit" disabled={busy}>
+				<Icon name="plus" />
 				{busy ? 'Cloning…' : 'Clone repository'}
 			</button>
 			<a href="/">Cancel</a>

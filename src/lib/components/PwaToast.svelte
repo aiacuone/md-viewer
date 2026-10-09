@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import Icon from '$lib/components/Icon.svelte';
 
 	let needRefresh = $state(false);
 	let offlineReady = $state(false);
@@ -27,13 +28,17 @@
 		{#if needRefresh}
 			<span>Update available.</span>
 			<button
-				class="primary"
+				class="primary icon-btn"
 				type="button"
+				aria-label="Reload"
+				title="Reload"
 				onclick={() => {
 					updateSW?.(true);
 					needRefresh = false;
-				}}>Reload</button
+				}}
 			>
+				<Icon name="sync" />
+			</button>
 		{:else}
 			<span>Ready to work offline (UI shell).</span>
 		{/if}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { displayName } from '$lib/display';
+	import Icon from '$lib/components/Icon.svelte';
 
 	let {
 		open = $bindable(false),
@@ -47,7 +48,9 @@
 		>
 			<div class="row" style="justify-content: space-between">
 				<h2 id="delete-file-title">Delete file?</h2>
-				<button type="button" disabled={busy} onclick={close}>Close</button>
+				<button type="button" class="icon-btn" disabled={busy} aria-label="Close" title="Close" onclick={close}>
+					<Icon name="close" />
+				</button>
 			</div>
 
 			<p>
@@ -67,8 +70,11 @@
 			{/if}
 
 			<div class="row actions">
-				<button type="button" disabled={busy} onclick={close}>Cancel</button>
-				<button class="danger" type="button" disabled={busy} onclick={() => onConfirm()}>
+				<button type="button" class="icon-btn" disabled={busy} aria-label="Cancel" title="Cancel" onclick={close}>
+					<Icon name="close" />
+				</button>
+				<button class="danger with-icon" type="button" disabled={busy} onclick={() => onConfirm()}>
+					<Icon name="trash" />
 					{busy ? 'Deleting…' : 'Delete & push'}
 				</button>
 			</div>

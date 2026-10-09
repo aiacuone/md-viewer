@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { displayName } from '$lib/display';
+	import Icon from '$lib/components/Icon.svelte';
 	import {
 		diffStats,
 		parseDiffText,
@@ -51,7 +52,10 @@
 		{/if}
 		<span class="muted compare">{compareLabel}</span>
 		{#if interactive && hasChanges}
-			<button type="button" class="revert-all" onclick={revertAll}>Revert all</button>
+			<button type="button" class="revert-all with-icon" onclick={revertAll}>
+				<Icon name="undo" />
+				Revert all
+			</button>
 		{/if}
 	</div>
 
@@ -84,7 +88,7 @@
 								aria-label="Restore removed line"
 								onclick={() => revertLine(i)}
 							>
-								×
+								<Icon name="close" />
 							</button>
 						{/if}
 					</div>
@@ -100,7 +104,7 @@
 								aria-label="Remove added line"
 								onclick={() => revertLine(i)}
 							>
-								×
+								<Icon name="close" />
 							</button>
 						{/if}
 					</div>
@@ -215,13 +219,22 @@
 	}
 
 	.revert {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		border: 0;
 		background: transparent;
 		color: var(--ink-muted);
-		font-size: 1.1rem;
 		line-height: 1;
-		padding: 0 0.25rem;
+		padding: 0;
+		width: 1.4rem;
+		height: 1.4rem;
 		opacity: 0.7;
+	}
+
+	.revert :global(svg) {
+		width: 0.75rem;
+		height: 0.75rem;
 	}
 
 	.revert:hover {
