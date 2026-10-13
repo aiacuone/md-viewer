@@ -9,7 +9,8 @@
 		onCommit,
 		open = $bindable(false),
 		showTrigger = true,
-		triggerClass = ''
+		triggerClass = '',
+		preview = false
 	}: {
 		repoId: string;
 		status: SyncStatus | null;
@@ -18,6 +19,7 @@
 		open?: boolean;
 		showTrigger?: boolean;
 		triggerClass?: string;
+		preview?: boolean;
 	} = $props();
 
 	let busy = $state<'pull' | 'push' | 'options' | 'apply' | null>(null);
@@ -157,14 +159,31 @@
 	}
 </script>
 
-{#if showTrigger}
+{#if preview}
+	<div class="row actions preview-actions">
+		<button type="button" class="icon-btn" data-preview-disabled aria-label="Pull" title="Pull">
+			<Icon name="pull" />
+		</button>
+		<button type="button" class="icon-btn" data-preview-disabled aria-label="Push" title="Push">
+			<Icon name="push" />
+		</button>
+		<button type="button" class="primary with-icon" data-preview-disabled> 
+			<Icon name="push" />
+			Commit + push
+		</button>
+		<button type="button" class="with-icon" data-preview-disabled>
+			<Icon name="spark" />
+			Get AI options
+		</button>
+	</div>
+{:else if showTrigger}
 	<button type="button" class="sync-trigger {triggerClass}" aria-label="Sync" title="Sync" onclick={() => (open = true)}>
 		<Icon name="sync" />
 		<span class="muted">{label}</span>
 	</button>
 {/if}
 
-{#if open}
+{#if open && !preview}
 	<div
 		class="backdrop"
 		role="button"

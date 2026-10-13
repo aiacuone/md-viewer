@@ -3,12 +3,14 @@
 		favourited = false,
 		busy = false,
 		label = 'Favourite',
-		onclick
+		onclick,
+		preview = false
 	}: {
 		favourited?: boolean;
 		busy?: boolean;
 		label?: string;
-		onclick: () => void;
+		onclick?: () => void;
+		preview?: boolean;
 	} = $props();
 </script>
 
@@ -20,7 +22,8 @@
 	aria-pressed={favourited}
 	aria-label={favourited ? `Unpin ${label}` : `Pin ${label}`}
 	title={favourited ? 'Unpin' : 'Pin'}
-	{onclick}
+	data-preview-disabled={preview ? '' : undefined}
+	onclick={preview ? undefined : onclick}
 >
 	<svg viewBox="0 0 24 24" aria-hidden="true">
 		{#if favourited}

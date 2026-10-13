@@ -138,10 +138,70 @@ On GitHub: **Actions** tab → latest **Deploy to Oracle VM** run.
 
 Confirm Security List still allows TCP **22** and **3000**, and that the public IP has not changed (Always Free public IPs can change if the instance is terminated and recreated).
 
+## Public preview and Google sign-in
+
+The public site is a static preview. The real app opens only after Google sign-in, and only when that email is listed on the VM. Google will not accept `http://161.33.95.248:3000` as a redirect, so this needs a hostname and HTTPS.
+
+### 1. Hostname
+
+Point a DNS name (for example `md.example.com`) at the VM. Put Cloudflare in front of it (orange-cloud proxy) so a traffic spike is dropped before it reaches the 1GB instance. In the OCI Security List, allow TCP **80** and **443**. After nginx is working, stop allowing public TCP **3000**.
+
+### 2. Secrets file
+
+On the VM, as root:
+
+```bash
+sudo tee /etc/md-viewer.env >/dev/null <<'EOF'
+PUBLIC_ORIGIN=https://md.example.com
+AUTH_SECRET=replace-with-a-long-random-string
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+ALLOWED_EMAILS=you@gmail.com
+ADDRESS_HEADER=X-Forwarded-For
+XFF_DEPTH=1
+PROTOCOL_HEADER=X-Forwarded-Proto
+HOST_HEADER=X-Forwarded-Host
+EOF
+sudo chmod 600 /etc/md-viewer.env
+```
+
+Create a Google OAuth **Web** client. Set the authorized redirect URI to `https://md.example.com/auth/callback/google` and the JavaScript origin to `https://md.example.com`.
+
+`AUTH_SECRET` is only used to sign the session cookie. Generate one with `openssl rand -base64 32`.
+
+The systemd unit must load that file. New installs from [`scripts/install-on-vm.sh`](../scripts/install-on-vm.sh) already include `EnvironmentFile=-/etc/md-viewer.env`. On an existing VM, add that line under `[Service]` in `/etc/systemd/system/md-viewer.service`, then:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart md-viewer
+```
+
+After nginx is the public listener, set `HOST=127.0.0.1` in the unit so Node is not reachable from the internet.
+
+### 3. Add someone to the allow list
+
+Edit the one line in `/etc/md-viewer.env`:
+
+```bash
+ALLOWED_EMAILS=you@gmail.com,someone@gmail.com
+```
+
+Then `sudo systemctl restart md-viewer`. No git change and no rebuild. The address must be the email Google returns for that account. Anyone else is sent back to the preview and does not get a session.
+
+### 4. Nginx in front of Node
+
+Install nginx and certbot (or a Cloudflare origin certificate), then install [`deploy/nginx-md-viewer.conf`](../deploy/nginx-md-viewer.conf):
+
+- `/preview` and `/_app/` are files under `~/md-viewer/build`. A request is rate-limited and does not reach Node.
+- `/login`, `/auth/`, and `/logout` are proxied to `127.0.0.1:3000`, with a tighter rate limit.
+- Other paths reach Node only when the `md_session` cookie is present. Guests are redirected to `/preview`. `/api/` without a cookie returns 401.
+
+Replace `md.example.com` in the config, enable the site, and reload nginx. Confirm `https://md.example.com/preview` loads, and that `http://YOUR_IP:3000` no longer answers from outside.
+
 ## Notes
 
 - App data (clones + PATs) lives under `~/md-viewer/data/` on the VM — back it up separately; it is not in git.
-- Service env: `HOST=0.0.0.0`, `PORT=3000`, `NODE_ENV=production`.
+- Service env: `HOST=0.0.0.0` until nginx is in front, then `HOST=127.0.0.1`. `PORT=3000`, `NODE_ENV=production`. Google and allow-list values live in `/etc/md-viewer.env`, not in git.
 - Install: [`scripts/install-on-vm.sh`](../scripts/install-on-vm.sh). Update: [`scripts/deploy-on-vm.sh`](../scripts/deploy-on-vm.sh).
 - Workflow: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml).
 - OCI `ubuntu` usually has passwordless `sudo` (needed for `systemctl restart`).

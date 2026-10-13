@@ -4,7 +4,11 @@
 /// <reference types="vite-plugin-pwa/vanillajs" />
 
 declare global {
-	namespace App {}
+	namespace App {
+		interface Locals {
+			user: { email: string } | null;
+		}
+	}
 }
 
 export {};

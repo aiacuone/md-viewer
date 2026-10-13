@@ -51,6 +51,7 @@ Environment=NODE_ENV=production
 Environment=HOST=0.0.0.0
 Environment=PORT=${PORT}
 Environment=NODE_OPTIONS=--max-old-space-size=384
+EnvironmentFile=-/etc/md-viewer.env
 ExecStart=/usr/bin/npm run start
 Restart=on-failure
 RestartSec=5

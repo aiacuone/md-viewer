@@ -11,6 +11,8 @@ export type RenderMarkdownOptions = {
 	repoId: string;
 	filePath: string;
 	contentRoot?: string;
+	/** When set, markdown file links stay inside this base path. */
+	previewBase?: string;
 };
 
 const EXTERNAL_HREF = /^(https?:|mailto:|tel:)/i;
@@ -75,7 +77,7 @@ function resolveDocPath(hrefPath: string, filePath: string, contentRoot?: string
 }
 
 /** Rewrite markdown hrefs for in-app navigation / safe external opens. */
-export function rewriteHref(href: string, { repoId, filePath, contentRoot }: RenderMarkdownOptions): {
+export function rewriteHref(href: string, { repoId, filePath, contentRoot, previewBase }: RenderMarkdownOptions): {
 	href: string;
 	external: boolean;
 } {
@@ -96,6 +98,10 @@ export function rewriteHref(href: string, { repoId, filePath, contentRoot }: Ren
 
 	if (MARKDOWN_EXT.test(path)) {
 		const resolved = resolveDocPath(path, filePath, contentRoot);
+		if (previewBase) {
+			const page = resolved.replace(MARKDOWN_EXT, '');
+			return { href: `${previewBase}/${page}${hash}`, external: false };
+		}
 		return {
 			href: `/repos/${repoId}/file?path=${encodeURIComponent(resolved)}${hash}`,
 			external: false

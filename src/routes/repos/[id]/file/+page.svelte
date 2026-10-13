@@ -10,6 +10,7 @@
 	import BackLink from '$lib/components/BackLink.svelte';
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import FileActions from '$lib/components/FileActions.svelte';
 	import type { DiffFile } from '$lib/types';
 	import { displayName, treeEntryLabel } from '$lib/display';
 	import { goBack } from '$lib/navigation';
@@ -213,71 +214,29 @@
 			<p class="muted file-path" title={data.path}>{data.path}</p>
 		</div>
 		<div class="header-actions desktop-only">
-			<button type="button" class="icon-btn" aria-label="Convert" title="Convert" onclick={() => (pasteOpen = true)}>
-				<Icon name="convert" />
-			</button>
-			<button type="button" class="icon-btn" aria-label="Sync" title="Sync" onclick={() => (syncOpen = true)}>
-				<Icon name="sync" />
-			</button>
-			<button
-				type="button"
-				class="danger icon-btn"
-				aria-label="Delete"
-				title="Delete"
-				onclick={() => {
+			<FileActions
+				part="header"
+				onConvert={() => (pasteOpen = true)}
+				onSync={() => (syncOpen = true)}
+				onDelete={() => {
 					deleteError = '';
 					deleteOpen = true;
 				}}
-			>
-				<Icon name="trash" />
-			</button>
+			/>
 		</div>
 	</div>
 
-	<div class="row desktop-only">
-		<button
-			class="primary icon-btn action-save"
-			type="button"
-			disabled={saving || !dirty}
-			aria-label={saving ? 'Saving' : 'Save'}
-			title={saving ? 'Saving' : 'Save'}
-			onclick={save}
-		>
-			<Icon name="save" />
-			{#if dirty && !saving}<span class="dirty-dot" aria-hidden="true"></span>{/if}
-		</button>
-		<div class="view-toggle" role="group" aria-label="View mode">
-			<button
-				type="button"
-				class="icon-btn"
-				class:active={viewMode === 'preview'}
-				aria-label="Preview"
-				title="Preview"
-				onclick={() => (viewMode = 'preview')}
-			>
-				<Icon name="preview" />
-			</button>
-			<button
-				type="button"
-				class="icon-btn"
-				class:active={viewMode === 'edit'}
-				aria-label="Edit"
-				title="Edit"
-				onclick={() => (viewMode = 'edit')}
-			>
-				<Icon name="edit" />
-			</button>
-		</div>
-		<button
-			type="button"
-			class="icon-btn"
-			class:active={showDiff}
-			aria-label={showDiff ? 'Hide diff' : 'View diff'}
-			title={showDiff ? 'Hide diff' : 'View diff'}
-			onclick={toggleDiff}
-		>
-			<Icon name="diff" />
-		</button>
+	<div class="desktop-only">
+		<FileActions
+			part="tools"
+			{viewMode}
+			{showDiff}
+			{dirty}
+			{saving}
+			onView={(mode) => (viewMode = mode)}
+			onSave={save}
+			onDiff={toggleDiff}
+		/>
 	</div>
 
 	{#if errorMsg}
@@ -347,78 +306,23 @@
 	</div>
 </section>
 
-<nav class="action-bar mobile-only" aria-label="File actions">
-	<button type="button" class="icon-btn action-back" onclick={() => goBack(repoHref)} aria-label="Back" title="Back">
-		<Icon name="back" />
-	</button>
-	<div class="view-toggle" role="group" aria-label="View mode">
-		<button
-			type="button"
-			class="icon-btn"
-			class:active={viewMode === 'preview'}
-			aria-label="Preview"
-			title="Preview"
-			onclick={() => (viewMode = 'preview')}
-		>
-			<Icon name="preview" />
-		</button>
-		<button
-			type="button"
-			class="icon-btn"
-			class:active={viewMode === 'edit'}
-			aria-label="Edit"
-			title="Edit"
-			onclick={() => (viewMode = 'edit')}
-		>
-			<Icon name="edit" />
-		</button>
-	</div>
-	<button
-		class="primary icon-btn action-save"
-		type="button"
-		disabled={saving || !dirty}
-		aria-label={saving ? 'Saving' : 'Save'}
-		title={saving ? 'Saving' : 'Save'}
-		onclick={save}
-	>
-		<Icon name="save" />
-		{#if dirty && !saving}<span class="dirty-dot" aria-hidden="true"></span>{/if}
-	</button>
-	<button
-		type="button"
-		class="icon-btn"
-		aria-label="Convert"
-		title="Convert"
-		onclick={() => (pasteOpen = true)}
-	>
-		<Icon name="convert" />
-	</button>
-	<button type="button" class="icon-btn" aria-label="Sync" title="Sync" onclick={() => (syncOpen = true)}>
-		<Icon name="sync" />
-	</button>
-	<button
-		type="button"
-		class="icon-btn"
-		class:active={showDiff}
-		aria-label={showDiff ? 'Hide diff' : 'View diff'}
-		title={showDiff ? 'Hide diff' : 'View diff'}
-		onclick={toggleDiff}
-	>
-		<Icon name="diff" />
-	</button>
-	<button
-		type="button"
-		class="danger icon-btn"
-		aria-label="Delete"
-		title="Delete"
-		onclick={() => {
-			deleteError = '';
-			deleteOpen = true;
-		}}
-	>
-		<Icon name="trash" />
-	</button>
-</nav>
+<FileActions
+	part="bar"
+	{viewMode}
+	{showDiff}
+	{dirty}
+	{saving}
+	onBack={() => goBack(repoHref)}
+	onView={(mode) => (viewMode = mode)}
+	onSave={save}
+	onConvert={() => (pasteOpen = true)}
+	onSync={() => (syncOpen = true)}
+	onDiff={toggleDiff}
+	onDelete={() => {
+		deleteError = '';
+		deleteOpen = true;
+	}}
+/>
 
 <CommitModal repoId={data.repo.id} bind:open={commitOpen} onCommitted={refresh} />
 <PasteNotesModal
@@ -505,29 +409,6 @@
 		border-radius: 4px;
 		opacity: 0.4;
 		background: color-mix(in srgb, var(--bg-elevated) 75%, transparent);
-	}
-
-	.view-toggle {
-		display: inline-flex;
-		border: 1px solid var(--border);
-		border-radius: 8px;
-		overflow: hidden;
-	}
-
-	.view-toggle button {
-		border: 0;
-		border-radius: 0;
-		background: transparent;
-	}
-
-	.view-toggle button + button {
-		border-left: 1px solid var(--border);
-	}
-
-	.view-toggle button.active {
-		background: var(--bg-soft);
-		color: var(--accent);
-		font-weight: 600;
 	}
 
 	.preview {
@@ -621,51 +502,6 @@
 	.diff-note {
 		margin: 0;
 		font-size: 0.85rem;
-	}
-
-	.action-bar {
-		position: fixed;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		z-index: 40;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.2rem;
-		padding: 0.4rem 0.4rem calc(0.4rem + env(safe-area-inset-bottom));
-		background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
-		border-top: 1px solid var(--border);
-		backdrop-filter: blur(10px);
-		box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
-	}
-
-	.action-bar .view-toggle {
-		flex: 0 0 auto;
-	}
-
-	.action-bar button.icon-btn {
-		width: 2rem;
-		height: 2rem;
-	}
-
-	.action-bar button.active {
-		background: var(--bg);
-		color: var(--accent);
-	}
-
-	.action-save {
-		position: relative;
-	}
-
-	.dirty-dot {
-		position: absolute;
-		top: 0.3rem;
-		right: 0.3rem;
-		width: 0.4rem;
-		height: 0.4rem;
-		border-radius: 50%;
-		background: var(--accent-ink);
 	}
 
 	@media (max-width: 767px) {
