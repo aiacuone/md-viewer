@@ -17,7 +17,9 @@
 		| 'more'
 		| 'spark'
 		| 'repos'
-		| 'settings' } = $props();
+		| 'settings'
+		| 'login'
+		| 'logout' } = $props();
 </script>
 
 <svg viewBox="0 0 14 14" aria-hidden="true">
@@ -232,6 +234,42 @@
 		<circle cx="4.6" cy="3.4" r="1.15" fill="none" stroke="currentColor" stroke-width="1.3" />
 		<circle cx="9.4" cy="7" r="1.15" fill="none" stroke="currentColor" stroke-width="1.3" />
 		<circle cx="5.8" cy="10.6" r="1.15" fill="none" stroke="currentColor" stroke-width="1.3" />
+	{:else if name === 'login'}
+		<path
+			d="M8.2 2.4h2.2a.8.8 0 0 1 .8.8v7.6a.8.8 0 0 1-.8.8H8.2"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.4"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		/>
+		<path d="M1.8 7h5.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+		<path
+			d="M5.4 4.8 7.6 7 5.4 9.2"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.4"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		/>
+	{:else if name === 'logout'}
+		<path
+			d="M5.8 2.4H3.6a.8.8 0 0 0-.8.8v7.6a.8.8 0 0 0 .8.8h2.2"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.4"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		/>
+		<path d="M6.4 7h5.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+		<path
+			d="M10 4.8 12.2 7 10 9.2"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.4"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		/>
 	{/if}
 </svg>
 

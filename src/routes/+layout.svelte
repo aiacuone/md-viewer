@@ -43,7 +43,9 @@
 				<button type="button" class="icon-btn" data-preview-disabled aria-label="Settings" title="Settings">
 					<Icon name="settings" />
 				</button>
-				<a class="signin" href="/login">Sign in</a>
+				<a class="icon-btn" href="/login" aria-label="Sign in" title="Sign in">
+					<Icon name="login" />
+				</a>
 			{:else}
 				<a
 					class="icon-btn"
@@ -67,7 +69,9 @@
 				</a>
 				{#if data.user}
 					<form method="POST" action="/logout">
-						<button type="submit" class="signout" title="Sign out">Sign out</button>
+						<button type="submit" class="icon-btn" aria-label="Sign out" title="Sign out">
+							<Icon name="logout" />
+						</button>
 					</form>
 				{/if}
 			{/if}
@@ -84,28 +88,8 @@
 		flex-wrap: nowrap;
 	}
 
-	.signin,
-	.signout {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.4rem 0.75rem;
-		border-radius: 8px;
-		background: var(--accent);
-		color: var(--accent-ink);
-		font-weight: 600;
-		font-size: 0.9rem;
-		text-decoration: none;
-		border: 0;
-	}
-
-	.signin:hover {
-		text-decoration: none;
-	}
-
-	.signout {
-		background: var(--bg-soft);
-		color: var(--ink);
-		border: 1px solid var(--border);
-		font-weight: 500;
+	.topbar-nav form {
+		display: flex;
+		margin: 0;
 	}
 </style>

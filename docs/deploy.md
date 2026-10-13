@@ -144,7 +144,7 @@ The public site is a static preview. The real app opens only after Google sign-i
 
 ### 1. Hostname
 
-Point a DNS name (for example `md.example.com`) at the VM. Put Cloudflare in front of it (orange-cloud proxy) so a traffic spike is dropped before it reaches the 1GB instance. In the OCI Security List, allow TCP **80** and **443**. After nginx is working, stop allowing public TCP **3000**.
+The public name is `md-viewer-aiacuone.duckdns.org`. In DuckDNS, set its IP to this VM (`161.33.95.248`). In the OCI Security List, allow TCP **80** and **443**. After nginx is working, stop allowing public TCP **3000**.
 
 ### 2. Secrets file
 
@@ -152,7 +152,7 @@ On the VM, as root:
 
 ```bash
 sudo tee /etc/md-viewer.env >/dev/null <<'EOF'
-PUBLIC_ORIGIN=https://md.example.com
+PUBLIC_ORIGIN=https://md-viewer-aiacuone.duckdns.org
 AUTH_SECRET=replace-with-a-long-random-string
 GOOGLE_CLIENT_ID=your-client-id
 GOOGLE_CLIENT_SECRET=your-client-secret
@@ -165,7 +165,7 @@ EOF
 sudo chmod 600 /etc/md-viewer.env
 ```
 
-Create a Google OAuth **Web** client. Set the authorized redirect URI to `https://md.example.com/auth/callback/google` and the JavaScript origin to `https://md.example.com`.
+Create a Google OAuth **Web** client. Set the authorized redirect URI to `https://md-viewer-aiacuone.duckdns.org/auth/callback/google` and the JavaScript origin to `https://md-viewer-aiacuone.duckdns.org`.
 
 `AUTH_SECRET` is only used to sign the session cookie. Generate one with `openssl rand -base64 32`.
 
@@ -196,7 +196,7 @@ Install nginx and certbot (or a Cloudflare origin certificate), then install [`d
 - `/login`, `/auth/`, and `/logout` are proxied to `127.0.0.1:3000`, with a tighter rate limit.
 - Other paths reach Node only when the `md_session` cookie is present. Guests are redirected to `/preview`. `/api/` without a cookie returns 401.
 
-Replace `md.example.com` in the config, enable the site, and reload nginx. Confirm `https://md.example.com/preview` loads, and that `http://YOUR_IP:3000` no longer answers from outside.
+The nginx config already uses `md-viewer-aiacuone.duckdns.org`. Enable the site and reload nginx. Confirm `https://md-viewer-aiacuone.duckdns.org/preview` loads, and that `http://YOUR_IP:3000` no longer answers from outside.
 
 ## Notes
 

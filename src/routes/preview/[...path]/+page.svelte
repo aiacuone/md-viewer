@@ -21,7 +21,7 @@
 </script>
 
 {#if node.kind === 'dir'}
-	<section class="stack">
+	<section class="stack dir-page">
 		{#if node.path === ''}
 			<div class="card about">
 				<h1>About</h1>
@@ -91,7 +91,13 @@
 {/if}
 
 <style>
-	h1 {
+	.dir-page h1 {
+		margin: 0;
+		letter-spacing: -0.03em;
+	}
+
+	.file-page h1,
+	.about h1 {
 		margin: 0;
 		font-size: 1.25rem;
 	}
@@ -148,8 +154,8 @@
 		margin: 0.55em 0;
 	}
 
-	.tree,
-	.tree ul {
+	.tree ul,
+	ul.tree {
 		list-style: none;
 		margin: 0;
 		padding: 0;
@@ -159,6 +165,7 @@
 		display: grid;
 		grid-template-columns: 1fr auto;
 		align-items: center;
+		gap: 0.25rem;
 	}
 
 	.row-item + .row-item {
@@ -166,10 +173,17 @@
 	}
 
 	.row-main {
-		display: block;
+		display: grid;
+		gap: 0.1rem;
+		min-width: 0;
+		width: 100%;
+		text-align: left;
 		padding: 0.7rem 0.15rem;
+		background: transparent;
+		border: 0;
 		color: inherit;
 		text-decoration: none;
+		border-radius: 0;
 	}
 
 	.row-main:hover {
