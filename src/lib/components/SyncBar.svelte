@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { ResolveOption, SyncStatus } from '$lib/types';
 	import Icon from '$lib/components/Icon.svelte';
 
@@ -10,7 +11,9 @@
 		open = $bindable(false),
 		showTrigger = true,
 		triggerClass = '',
-		preview = false
+		preview = false,
+		runPull = $bindable<(() => Promise<void>) | undefined>(undefined),
+		runPush = $bindable<(() => Promise<void>) | undefined>(undefined)
 	}: {
 		repoId: string;
 		status: SyncStatus | null;
@@ -20,7 +23,14 @@
 		showTrigger?: boolean;
 		triggerClass?: string;
 		preview?: boolean;
+		runPull?: (() => Promise<void>) | undefined;
+		runPush?: (() => Promise<void>) | undefined;
 	} = $props();
+
+	onMount(() => {
+		runPull = pull;
+		runPush = pushOnly;
+	});
 
 	let busy = $state<'pull' | 'push' | 'options' | 'apply' | null>(null);
 	let errorMsg = $state('');
@@ -65,6 +75,7 @@
 			const res = await fetch(`/api/repos/${repoId}/pull`, { method: 'POST' });
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok) {
+				open = true;
 				if (body.code === 'HISTORIES_DIVERGED' || /diverged/i.test(String(body.message ?? ''))) {
 					diverged = true;
 					errorMsg = body.message || 'Histories have diverged.';
@@ -75,6 +86,7 @@
 			}
 			await onRefresh();
 		} catch (err) {
+			open = true;
 			errorMsg = err instanceof Error ? err.message : 'Pull failed';
 		} finally {
 			busy = null;
@@ -87,9 +99,13 @@
 		try {
 			const res = await fetch(`/api/repos/${repoId}/push`, { method: 'POST' });
 			const body = await res.json().catch(() => ({}));
-			if (!res.ok) throw new Error(body.message || 'Push failed');
+			if (!res.ok) {
+				open = true;
+				throw new Error(body.message || 'Push failed');
+			}
 			await onRefresh();
 		} catch (err) {
+			open = true;
 			errorMsg = err instanceof Error ? err.message : 'Push failed';
 		} finally {
 			busy = null;

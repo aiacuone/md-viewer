@@ -14,6 +14,8 @@
 		onSave,
 		onConvert,
 		onSync,
+		onPull,
+		onPush,
 		onDiff,
 		onDelete
 	}: {
@@ -29,6 +31,8 @@
 		onSave?: () => void;
 		onConvert?: () => void;
 		onSync?: () => void;
+		onPull?: () => void;
+		onPush?: () => void;
 		onDiff?: () => void;
 		onDelete?: () => void;
 	} = $props();
@@ -102,6 +106,32 @@
 	</button>
 {/snippet}
 
+{#snippet pullButton()}
+	<button
+		type="button"
+		class="icon-btn"
+		aria-label="Pull"
+		title="Pull"
+		data-preview-disabled={preview ? '' : undefined}
+		onclick={preview ? undefined : onPull}
+	>
+		<Icon name="pull" />
+	</button>
+{/snippet}
+
+{#snippet pushButton()}
+	<button
+		type="button"
+		class="icon-btn"
+		aria-label="Push"
+		title="Push"
+		data-preview-disabled={preview ? '' : undefined}
+		onclick={preview ? undefined : onPush}
+	>
+		<Icon name="push" />
+	</button>
+{/snippet}
+
 {#snippet diffButton()}
 	<button
 		type="button"
@@ -134,10 +164,18 @@
 	{@render syncButton()}
 	{@render deleteButton()}
 {:else if part === 'tools'}
-	<div class="row">
+	<div class="tool-group">
 		{@render saveButton()}
 		{@render viewToggle()}
 		{@render diffButton()}
+		{@render convertButton()}
+		{#if preview || onPull}
+			{@render pullButton()}
+			{@render pushButton()}
+		{:else}
+			{@render syncButton()}
+		{/if}
+		{@render deleteButton()}
 	</div>
 {:else}
 	<nav class="action-bar mobile-only" aria-label="File actions">
@@ -160,13 +198,6 @@
 {/if}
 
 <style>
-	.row {
-		display: flex;
-		gap: 0.6rem;
-		flex-wrap: wrap;
-		align-items: center;
-	}
-
 	.view-toggle {
 		display: inline-flex;
 		border: 1px solid var(--border);
@@ -188,6 +219,20 @@
 		background: var(--bg-soft);
 		color: var(--accent);
 		font-weight: 600;
+	}
+
+	.tool-group .view-toggle {
+		border: 0;
+		background: transparent;
+	}
+
+	.tool-group .view-toggle button + button {
+		border-left: 0;
+	}
+
+	.tool-group .view-toggle button.active {
+		background: transparent;
+		color: var(--accent);
 	}
 
 	.action-bar {

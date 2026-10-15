@@ -12,7 +12,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import FileActions from '$lib/components/FileActions.svelte';
 	import type { DiffFile } from '$lib/types';
-	import { displayName, treeEntryLabel } from '$lib/display';
+	import { displayName, syncCaption, treeEntryLabel } from '$lib/display';
 	import { goBack } from '$lib/navigation';
 	import { unifiedDiff } from '$lib/diff';
 	import { renderMarkdown } from '$lib/markdown';
@@ -34,6 +34,8 @@
 	let deleteError = $state('');
 	let favourites = $state<string[]>([]);
 	let starBusy = $state(false);
+	let runPull = $state<(() => Promise<void>) | undefined>();
+	let runPush = $state<(() => Promise<void>) | undefined>();
 
 	$effect(() => {
 		favourites = data.favourites;
@@ -50,6 +52,7 @@
 		})
 	);
 	const fileTitle = $derived(treeEntryLabel({ name: data.path.split('/').pop() ?? data.path, path: data.path, type: 'file' }));
+	const sync = $derived(syncCaption(data.status));
 	const repoHref = $derived(`/repos/${data.repo.id}`);
 	const parentFolder = $derived.by(() => {
 		const parts = data.path.split('/').filter(Boolean);
@@ -199,6 +202,7 @@
 <section class="stack file-page">
 	<div class="header-row">
 		<div>
+			<p class="breadcrumb">{data.repo.name}{data.path ? ` / ${data.path}` : ''}</p>
 			<div class="title-row">
 				<div class="desktop-only">
 					<BackLink fallback={repoHref} />
@@ -213,20 +217,13 @@
 			</div>
 			<p class="muted file-path" title={data.path}>{data.path}</p>
 		</div>
-		<div class="header-actions desktop-only">
-			<FileActions
-				part="header"
-				onConvert={() => (pasteOpen = true)}
-				onSync={() => (syncOpen = true)}
-				onDelete={() => {
-					deleteError = '';
-					deleteOpen = true;
-				}}
-			/>
-		</div>
 	</div>
 
-	<div class="desktop-only">
+	<div class="file-toolbar desktop-only">
+		<p class="sync-status">
+			<strong>{sync.branch}</strong>
+			<span>{sync.detail}</span>
+		</p>
 		<FileActions
 			part="tools"
 			{viewMode}
@@ -235,8 +232,19 @@
 			{saving}
 			onView={(mode) => (viewMode = mode)}
 			onSave={save}
+			onConvert={() => (pasteOpen = true)}
+			onPull={() => runPull?.()}
+			onPush={() => runPush?.()}
 			onDiff={toggleDiff}
+			onDelete={() => {
+				deleteError = '';
+				deleteOpen = true;
+			}}
 		/>
+		<p class="saved-note" aria-live="polite">
+			{#if dirty}Unsaved buffer{:else}Saved to working tree{/if}
+			{#if viewMode === 'edit'} · Cmd/Ctrl+S to save{/if}
+		</p>
 	</div>
 
 	{#if errorMsg}
@@ -292,12 +300,6 @@
 	{/if}
 
 	<div class="pane">
-		<p class="muted save-status" aria-live="polite">
-			{#if dirty}Unsaved buffer{:else}Saved to working tree{/if}
-			<span class="desktop-only">
-				{#if viewMode === 'edit'} · Cmd/Ctrl+S to save{/if}
-			</span>
-		</p>
 		{#if viewMode === 'edit'}
 			<MarkdownEditor bind:value={content} onSave={save} />
 		{:else}
@@ -345,6 +347,8 @@
 	onRefresh={refresh}
 	onCommit={() => (commitOpen = true)}
 	bind:open={syncOpen}
+	bind:runPull
+	bind:runPush
 	showTrigger={false}
 />
 <style>
@@ -381,34 +385,12 @@
 		flex-wrap: wrap;
 	}
 
-	.header-actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		align-items: center;
-	}
-
 	.pane {
 		position: relative;
 		min-height: min(70vh, 720px);
 		min-width: 0;
 		max-width: 100%;
 		overflow-x: hidden;
-	}
-
-	.save-status {
-		position: absolute;
-		top: 0.2rem;
-		right: 0.25rem;
-		z-index: 2;
-		margin: 0;
-		padding: 0.1rem 0.3rem;
-		font-size: 0.65rem;
-		line-height: 1.2;
-		pointer-events: none;
-		border-radius: 4px;
-		opacity: 0.4;
-		background: color-mix(in srgb, var(--bg-elevated) 75%, transparent);
 	}
 
 	.preview {
@@ -462,7 +444,7 @@
 		overflow: auto;
 		background: var(--bg);
 		padding: 0.65rem;
-		border-radius: 8px;
+		border-radius: var(--radius);
 		font-size: 0.92em;
 	}
 

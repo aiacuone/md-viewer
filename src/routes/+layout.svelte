@@ -24,8 +24,8 @@
 
 <div class="shell">
 	<header class="topbar">
-		<a class="brand" href={homeHref}>MD Viewer</a>
-		<nav class="topbar-nav row" aria-label="Main">
+		<a class="brand" href={homeHref}><span class="brand-mark">M</span><span>MD Viewer</span></a>
+		<nav class="topbar-nav" aria-label="Main">
 			<a
 				class="icon-btn"
 				class:active={reposActive}
@@ -84,12 +84,29 @@
 
 <style>
 	.topbar-nav {
-		gap: 0.4rem;
+		display: flex;
+		align-items: center;
+		gap: 0;
 		flex-wrap: nowrap;
+		padding: 0.2rem;
+		background: var(--bg-soft);
+		border: 1px solid var(--border);
+		border-radius: 12px;
 	}
 
 	.topbar-nav form {
 		display: flex;
 		margin: 0;
+	}
+
+	.topbar-nav :global(.icon-btn) {
+		background: transparent;
+		border: 0;
+		border-radius: 8px;
+	}
+
+	.topbar-nav :global(.icon-btn.active) {
+		background: var(--bg);
+		color: var(--accent);
 	}
 </style>

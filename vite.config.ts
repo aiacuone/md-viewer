@@ -11,8 +11,8 @@ export default defineConfig({
 				name: 'MD Viewer',
 				short_name: 'MD Viewer',
 				description: 'Browse and edit markdown repos with git sync',
-				theme_color: '#0e1014',
-				background_color: '#0e1014',
+				theme_color: '#080808',
+				background_color: '#080808',
 				display: 'standalone',
 				start_url: '/',
 				icons: [

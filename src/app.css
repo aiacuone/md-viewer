@@ -1,18 +1,18 @@
 :root {
-	--bg: #0e1014;
-	--bg-elevated: #161a21;
-	--bg-soft: #1e2430;
-	--ink: #e8eaef;
-	--ink-muted: #8b93a7;
-	--accent: #7eb6ff;
-	--accent-ink: #0a0c10;
-	--danger: #f07178;
-	--border: #2a3140;
+	--bg: #080808;
+	--bg-elevated: #141414;
+	--bg-soft: #202020;
+	--ink: #f7f5ef;
+	--ink-muted: #99968e;
+	--accent: #9eb6ff;
+	--accent-ink: #10131c;
+	--danger: #ff6b6b;
+	--border: #373737;
 	--added: #7dcea0;
-	--removed: #f07178;
+	--removed: #ff6b6b;
 	--font-sans: 'Segoe UI', 'Helvetica Neue', sans-serif;
 	--font-mono: 'ui-monospace', 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
-	--radius: 10px;
+	--radius: 22px;
 	--shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
@@ -124,11 +124,26 @@ label {
 }
 
 .brand {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.65rem;
 	font-size: 1.35rem;
 	font-weight: 700;
 	letter-spacing: -0.02em;
 	color: var(--ink);
 	text-decoration: none;
+}
+
+.brand-mark {
+	display: grid;
+	width: 1.8rem;
+	height: 1.8rem;
+	place-items: center;
+	background: var(--accent);
+	border-radius: 6px;
+	color: var(--accent-ink);
+	font-size: 0.82rem;
+	font-weight: 700;
 }
 
 .brand:hover {
@@ -142,6 +157,10 @@ label {
 	border-radius: var(--radius);
 	padding: 1rem 1.1rem;
 	box-shadow: var(--shadow);
+}
+
+.card.tree {
+	padding: 0.35rem 0.65rem;
 }
 
 .muted {
@@ -224,4 +243,143 @@ button.with-icon {
 	width: 0.85em;
 	height: 0.85em;
 	display: block;
+}
+
+.file-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+
+.sync-status {
+	display: grid;
+	gap: 0.1rem;
+	margin: 0;
+}
+
+.sync-status span {
+	color: var(--ink-muted);
+	font-size: 0.75rem;
+	font-weight: 400;
+}
+
+.tool-group {
+	display: inline-flex;
+	align-items: center;
+	gap: 0;
+	padding: 0.2rem;
+	background: var(--bg-soft);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+}
+
+.tool-group > button.icon-btn,
+.tool-group > a.icon-btn {
+	background: transparent;
+	border: 0;
+	border-radius: 8px;
+}
+
+.tool-group > button.icon-btn.primary {
+	background: var(--accent);
+	color: var(--accent-ink);
+	border-color: transparent;
+}
+
+.type-mark {
+	position: relative;
+	flex: 0 0 auto;
+}
+
+.folder-mark {
+	width: 1.05rem;
+	height: 0.68rem;
+	margin-top: 0.22rem;
+	border-radius: 2px;
+	background: var(--accent);
+}
+
+.folder-mark::before {
+	content: '';
+	position: absolute;
+	top: -0.2rem;
+	left: 0;
+	width: 0.46rem;
+	height: 0.22rem;
+	border-radius: 2px 2px 0 0;
+	background: var(--accent);
+}
+
+.file-mark {
+	width: 0.72rem;
+	height: 0.95rem;
+	border: 1.5px solid var(--accent);
+	border-radius: 1px 0 1px 1px;
+	background: transparent;
+}
+
+.file-mark::after {
+	content: '';
+	position: absolute;
+	top: -1.5px;
+	right: -1.5px;
+	border-top: 0.28rem solid var(--bg-elevated);
+	border-left: 0.28rem solid var(--accent);
+}
+
+.section-label {
+	display: flex;
+	justify-content: space-between;
+	margin: 0 0 0.55rem;
+	color: var(--accent);
+	font-family: var(--font-mono);
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+
+.section-label span {
+	color: var(--ink-muted);
+}
+
+.breadcrumb {
+	margin: 0 0 0.45rem;
+	color: var(--accent);
+	font-size: 0.78rem;
+}
+
+.row-sub {
+	display: block;
+	color: var(--ink-muted);
+	font-family: var(--font-mono);
+	font-size: 0.68rem;
+}
+
+.with-mark > span:last-child {
+	display: grid;
+	gap: 0.06rem;
+	min-width: 0;
+	line-height: 1.25;
+}
+
+.crumbs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	align-items: center;
+	color: var(--ink-muted);
+	font-size: 0.82rem;
+}
+
+.crumbs strong {
+	color: var(--ink);
+}
+
+.saved-note {
+	margin: 0;
+	color: var(--ink-muted);
+	font-size: 0.75rem;
 }

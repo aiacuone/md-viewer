@@ -6,7 +6,7 @@
 	import BackLink from '$lib/components/BackLink.svelte';
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { displayName, treeEntryLabel } from '$lib/display';
+	import { displayName, syncCaption, treeEntryLabel } from '$lib/display';
 	import { goBack } from '$lib/navigation';
 
 	let { data } = $props();
@@ -16,6 +16,8 @@
 	let favourites = $state<string[]>([]);
 	let starBusy = $state<string | null>(null);
 	let starError = $state('');
+	let runPull = $state<(() => Promise<void>) | undefined>();
+	let runPush = $state<(() => Promise<void>) | undefined>();
 
 	$effect(() => {
 		favourites = data.favourites;
@@ -33,6 +35,7 @@
 		});
 		return entries;
 	});
+	const sync = $derived(syncCaption(data.status));
 	const folders = $derived(sortedTree.filter((entry) => entry.type === 'dir'));
 	const files = $derived(sortedTree.filter((entry) => entry.type === 'file'));
 
@@ -96,6 +99,7 @@
 <section class="stack repo-page">
 	<div class="header-row">
 		<div class="title-block">
+			<p class="breadcrumb">{crumbs.map((crumb) => crumb.label).join(' / ')}</p>
 			<div class="title-row">
 				<div class="desktop-only">
 					<BackLink fallback="/?list=1" />
@@ -106,28 +110,22 @@
 				<p class="muted">content root <code>{data.repo.contentRoot}</code></p>
 			{/if}
 		</div>
-		<div class="header-actions desktop-only">
-			<button
-				type="button"
-				class="icon-btn"
-				aria-label="Convert"
-				title="Convert"
-				onclick={() => (pasteOpen = true)}
-			>
-				<Icon name="convert" />
-			</button>
-			<button type="button" class="sync-trigger" aria-label="Sync" title="Sync" onclick={() => (syncOpen = true)}>
-				<Icon name="sync" />
-				{#if data.status}
-					<span class="muted"
-						>{data.status.branch} · {data.status.uncommitted.length
-							? `${data.status.uncommitted.length} uncommitted`
-							: 'clean'}{#if data.status.ahead}
-							· ahead {data.status.ahead}{/if}{#if data.status.behind}
-							· behind {data.status.behind}{/if}</span
-					>
-				{/if}
-			</button>
+		<div class="file-toolbar desktop-only">
+			<p class="sync-status">
+				<strong>{sync.branch}</strong>
+				<span>{sync.detail}</span>
+			</p>
+			<div class="tool-group">
+				<button type="button" class="icon-btn" aria-label="Convert" title="Convert" onclick={() => (pasteOpen = true)}>
+					<Icon name="convert" />
+				</button>
+				<button type="button" class="icon-btn" aria-label="Pull" title="Pull" onclick={() => runPull?.()}>
+					<Icon name="pull" />
+				</button>
+				<button type="button" class="icon-btn" aria-label="Push" title="Push" onclick={() => runPush?.()}>
+					<Icon name="push" />
+				</button>
+			</div>
 		</div>
 	</div>
 
@@ -148,12 +146,14 @@
 		</div>
 	{:else}
 		{#if folders.length}
+			<p class="section-label">Folders <span>{folders.length}</span></p>
 			<div class="card tree">
 				<ul>
 					{#each folders as entry}
 						<li class="row-item">
-							<button type="button" class="row-main dir" onclick={() => openPath(entry.path)}>
-								{treeEntryLabel(entry)}
+							<button type="button" class="row-main dir with-mark" onclick={() => openPath(entry.path)}>
+								<span class="type-mark folder-mark" aria-hidden="true"></span>
+								<span><strong>{treeEntryLabel(entry)}</strong><small class="row-sub">{entry.path || entry.name}</small></span>
 							</button>
 							<FavouriteStar
 								favourited={favouriteSet.has(entry.path)}
@@ -167,14 +167,17 @@
 			</div>
 		{/if}
 		{#if files.length}
-			<ul class="tree">
+			<p class="section-label">Markdown files <span>{files.length}</span></p>
+			<div class="card tree">
+				<ul>
 				{#each files as entry}
 					<li class="row-item">
 						<a
-							class="row-main"
+							class="row-main with-mark"
 							href={`/repos/${data.repo.id}/file?path=${encodeURIComponent(entry.path)}`}
 						>
-							{treeEntryLabel(entry)}
+							<span class="type-mark file-mark" aria-hidden="true"></span>
+							<span><strong>{treeEntryLabel(entry)}</strong><small class="row-sub">{entry.path}</small></span>
 						</a>
 						<FavouriteStar
 							favourited={favouriteSet.has(entry.path)}
@@ -184,7 +187,8 @@
 						/>
 					</li>
 				{/each}
-			</ul>
+				</ul>
+			</div>
 		{/if}
 	{/if}
 </section>
@@ -225,6 +229,8 @@
 	onRefresh={refresh}
 	onCommit={() => (commitOpen = true)}
 	bind:open={syncOpen}
+	bind:runPull
+	bind:runPush
 	showTrigger={false}
 />
 
@@ -258,24 +264,6 @@
 		flex-wrap: wrap;
 	}
 
-	.header-actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		align-items: center;
-	}
-
-	.sync-trigger {
-		display: inline-flex;
-		gap: 0.5rem;
-		align-items: center;
-	}
-
-	.sync-trigger .muted {
-		font-size: 0.85rem;
-		font-weight: 400;
-	}
-
 	.crumb {
 		background: transparent;
 		border: 0;
@@ -294,11 +282,22 @@
 		display: grid;
 		grid-template-columns: 1fr auto;
 		align-items: center;
-		gap: 0.25rem;
+		gap: 0.2rem;
+	}
+
+	.row-item :global(.star) {
+		width: 2rem;
+		height: 2rem;
 	}
 
 	.row-item + .row-item {
 		border-top: 1px solid var(--border);
+	}
+
+	.row-main.with-mark {
+		display: flex;
+		align-items: center;
+		gap: 0.65rem;
 	}
 
 	.row-main {
@@ -307,7 +306,7 @@
 		min-width: 0;
 		width: 100%;
 		text-align: left;
-		padding: 0.7rem 0.15rem;
+		padding: 0.55rem 0.7rem;
 		background: transparent;
 		border: 0;
 		color: inherit;

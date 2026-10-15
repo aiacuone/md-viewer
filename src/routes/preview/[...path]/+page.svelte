@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FileActions from '$lib/components/FileActions.svelte';
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
-	import SyncBar from '$lib/components/SyncBar.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 
 	let { data } = $props();
 
@@ -11,13 +11,18 @@
 	);
 	const folders = $derived(node.kind === 'dir' ? node.entries.filter((entry) => entry.type === 'dir') : []);
 	const files = $derived(node.kind === 'dir' ? node.entries.filter((entry) => entry.type === 'file') : []);
-	const sampleStatus = {
-		clean: true,
-		uncommitted: [] as string[],
-		ahead: 0,
-		behind: 0,
-		branch: 'main'
-	};
+	const crumbs = $derived.by(() => {
+		const rel = node.kind === 'dir' ? node.path : node.parent;
+		const parts = rel ? rel.split('/').filter(Boolean) : [];
+		const items = [{ label: 'Home', href: '/preview' }];
+		let acc = '';
+		for (const part of parts) {
+			acc = acc ? `${acc}/${part}` : part;
+			items.push({ label: part, href: `/preview/${acc}` });
+		}
+		if (node.kind === 'file') items.push({ label: node.title, href: '' });
+		return items;
+	});
 </script>
 
 {#if node.kind === 'dir'}
@@ -31,15 +36,47 @@
 		{/if}
 
 		<div class="header-row">
-			<h1>{node.path === '' ? 'Sample notes' : node.title}</h1>
+			<div>
+				<p class="breadcrumb">{crumbs.map((crumb) => crumb.label).join(' / ')}</p>
+				<h1>{node.path === '' ? 'Sample notes' : node.title}</h1>
+			</div>
+			<div class="file-toolbar">
+				<p class="sync-status">
+					<strong>main</strong>
+					<span>Clean working tree</span>
+				</p>
+				<div class="tool-group">
+					<button type="button" class="icon-btn" data-preview-disabled aria-label="Pull" title="Pull">
+						<Icon name="pull" />
+					</button>
+					<button type="button" class="icon-btn" data-preview-disabled aria-label="Push" title="Push">
+						<Icon name="push" />
+					</button>
+				</div>
+			</div>
 		</div>
 
+		<nav class="crumbs" aria-label="Breadcrumb">
+			{#each crumbs as crumb, i}
+				{#if i > 0}<span class="muted">/</span>{/if}
+				{#if i < crumbs.length - 1 && crumb.href}
+					<a href={crumb.href}>{crumb.label}</a>
+				{:else}
+					<strong>{crumb.label}</strong>
+				{/if}
+			{/each}
+		</nav>
+
 		{#if folders.length}
+			<p class="section-label">Folders <span>{folders.length}</span></p>
 			<div class="card tree">
 				<ul>
 					{#each folders as entry}
 						<li class="row-item">
-							<a class="row-main dir" href="/preview/{entry.path}">{entry.name}</a>
+							<a class="row-main dir with-mark" href="/preview/{entry.path}">
+								<span class="type-mark folder-mark" aria-hidden="true"></span>
+								<span><strong>{entry.name}</strong><small class="row-sub">{entry.path}</small></span>
+							</a>
 							<FavouriteStar preview label={entry.name} />
 						</li>
 					{/each}
@@ -47,39 +84,39 @@
 			</div>
 		{/if}
 		{#if files.length}
-			<ul class="tree">
-				{#each files as entry}
-					<li class="row-item">
-						<a class="row-main" href="/preview/{entry.path}">{entry.name}</a>
-						<FavouriteStar preview label={entry.name} />
-					</li>
-				{/each}
-			</ul>
+			<p class="section-label">Markdown files <span>{files.length}</span></p>
+			<div class="card tree">
+				<ul>
+					{#each files as entry}
+						<li class="row-item">
+							<a class="row-main with-mark" href="/preview/{entry.path}">
+								<span class="type-mark file-mark" aria-hidden="true"></span>
+								<span><strong>{entry.name}</strong><small class="row-sub">{entry.path}</small></span>
+							</a>
+							<FavouriteStar preview label={entry.name} />
+						</li>
+					{/each}
+				</ul>
+			</div>
 		{/if}
 	</section>
 {:else}
 	<section class="stack file-page">
 		<div class="header-row">
 			<div>
+				<p class="breadcrumb">{crumbs.map((crumb) => crumb.label).join(' / ')}</p>
 				<h1>{node.title}</h1>
 				<p class="muted file-path">{node.path}</p>
 			</div>
-			<div class="header-actions desktop-only">
-				<FileActions part="header" preview />
-			</div>
 		</div>
 
-		<SyncBar
-			preview
-			repoId="preview"
-			status={sampleStatus}
-			onRefresh={() => {}}
-			onCommit={() => {}}
-			showTrigger={false}
-		/>
-
-		<div class="desktop-only">
+		<div class="file-toolbar">
+			<p class="sync-status">
+				<strong>main</strong>
+				<span>Clean working tree</span>
+			</p>
 			<FileActions part="tools" preview viewMode="preview" />
+			<p class="saved-note">Saved to working tree</p>
 		</div>
 
 		<div class="pane">
@@ -119,13 +156,6 @@
 		flex-wrap: wrap;
 	}
 
-	.header-actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		align-items: center;
-	}
-
 	.file-path {
 		margin: 0.15rem 0 0;
 		font-family: var(--font-mono);
@@ -154,6 +184,14 @@
 		margin: 0.55em 0;
 	}
 
+	.preview :global(pre) {
+		overflow: auto;
+		background: var(--bg);
+		padding: 0.65rem;
+		border-radius: var(--radius);
+		font-size: 0.92em;
+	}
+
 	.tree ul,
 	ul.tree {
 		list-style: none;
@@ -165,11 +203,22 @@
 		display: grid;
 		grid-template-columns: 1fr auto;
 		align-items: center;
-		gap: 0.25rem;
+		gap: 0.2rem;
+	}
+
+	.row-item :global(.star) {
+		width: 2rem;
+		height: 2rem;
 	}
 
 	.row-item + .row-item {
 		border-top: 1px solid var(--border);
+	}
+
+	.row-main.with-mark {
+		display: flex;
+		align-items: center;
+		gap: 0.65rem;
 	}
 
 	.row-main {
@@ -178,7 +227,7 @@
 		min-width: 0;
 		width: 100%;
 		text-align: left;
-		padding: 0.7rem 0.15rem;
+		padding: 0.55rem 0.7rem;
 		background: transparent;
 		border: 0;
 		color: inherit;
