@@ -24,7 +24,7 @@ Pull is narrow.
 4. If it is only ahead, pull tells you to push.
 5. If it is only behind, the server fast-forwards.
 
-Pull does not create a merge commit or leave conflict markers. That choice is explained in [Challenges](../build/challenges.md). Opening a repo can also fetch and fast-forward when the tree is clean and the branch is strictly behind.
+Pull does not create a merge commit or leave conflict markers. That choice is explained in [Challenges](../build/challenges.md). Opening a repo can also fetch and fast-forward when the tree is clean and the branch is strictly behind. Folder and file browsing reuse that check for about 30 seconds. A save, commit, push, pull, or delete drops it, and Pull always fetches.
 
 ## When histories diverge
 

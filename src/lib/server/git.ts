@@ -180,6 +180,7 @@ export async function writeMarkdownFile(
 	const { absolute } = resolveMarkdownPath(repoDir(meta.id), meta.contentRoot, relativePath);
 	await mkdir(path.dirname(absolute), { recursive: true });
 	await writeFile(absolute, content, 'utf8');
+	invalidateSyncCache(meta.id);
 }
 
 /** Delete a markdown file from disk and stage the removal in git when tracked. */
@@ -203,6 +204,7 @@ export async function deleteMarkdownFile(meta: RepoMeta, relativePath: string): 
 	} catch {
 		// Untracked file — nothing to stage
 	}
+	invalidateSyncCache(meta.id);
 }
 
 /**
@@ -244,6 +246,113 @@ function filterToContentRoot(meta: RepoMeta, repoRelativePath: string): boolean 
 	);
 }
 
+/** Reuse one remote check across folder and file navigations. */
+const SYNC_TTL_MS = 30_000;
+
+type AutoPullResult = { status: SyncStatus; pulled: boolean };
+
+type SyncCacheEntry = { at: number; status: SyncStatus };
+type InflightSync = { epoch: number; promise: Promise<AutoPullResult> };
+
+const syncCache = new Map<string, SyncCacheEntry>();
+const syncInflight = new Map<string, InflightSync>();
+const syncEpoch = new Map<string, number>();
+
+function invalidateSyncCache(repoId: string): void {
+	syncCache.delete(repoId);
+	syncEpoch.set(repoId, (syncEpoch.get(repoId) ?? 0) + 1);
+}
+
+function rememberSync(repoId: string, status: SyncStatus): void {
+	syncCache.set(repoId, { at: Date.now(), status });
+}
+
+async function readRemoteOid(dir: string, branch: string): Promise<string | null> {
+	try {
+		return await git.resolveRef({ fs, dir, ref: `origin/${branch}` });
+	} catch {
+		return null;
+	}
+}
+
+async function countAheadBehind(
+	dir: string,
+	branch: string,
+	remoteOid: string | null
+): Promise<{ ahead: number; behind: number }> {
+	let ahead = 0;
+	let behind = 0;
+	try {
+		const localOid = await git.resolveRef({ fs, dir, ref: branch });
+		if (remoteOid && localOid !== remoteOid) {
+			try {
+				const localLog = await git.log({ fs, dir, ref: branch });
+				const remoteLog = await git.log({ fs, dir, ref: `origin/${branch}` });
+				const localOids = new Set(localLog.map((c) => c.oid));
+				const remoteOids = new Set(remoteLog.map((c) => c.oid));
+				ahead = localLog.filter((c) => !remoteOids.has(c.oid)).length;
+				behind = remoteLog.filter((c) => !localOids.has(c.oid)).length;
+			} catch (err) {
+				// Incomplete fetch / missing objects — force a re-fetch next pull rather than crashing Sync
+				const msg = err instanceof Error ? err.message : String(err);
+				if (/could not find|not found/i.test(msg)) {
+					return { ahead: 0, behind: 1 };
+				}
+				throw err;
+			}
+		}
+	} catch {
+		// no remote tracking — leave ahead/behind at 0
+	}
+	return { ahead, behind };
+}
+
+/**
+ * Move the local branch to origin/<branch> after a fetch.
+ * isomorphic-git's fastForward() always fetches again; this does not.
+ */
+async function fastForwardLocal(dir: string, branch: string): Promise<void> {
+	await git.merge({
+		fs,
+		dir,
+		ours: branch,
+		theirs: `origin/${branch}`,
+		fastForward: true,
+		fastForwardOnly: true
+	});
+	await git.checkout({
+		fs,
+		dir,
+		ref: branch
+	});
+}
+
+function asDiverged(err: unknown): Error {
+	const msg = err instanceof Error ? err.message : String(err);
+	if (/diverged|conflict|merge|fast.?forward|not.*ancestor/i.test(msg)) {
+		const diverge = new Error(
+			'Histories have diverged. Choose an AI resolve option, or resolve on another machine.'
+		);
+		(diverge as Error & { code?: string }).code = DIVERGED_CODE;
+		return diverge;
+	}
+	if (authError(err)) {
+		return new Error('Authentication failed. Check the token under Settings.');
+	}
+	return err instanceof Error ? err : new Error(msg);
+}
+
+/** One fetch. Skip a second worktree scan when the remote tip did not move. */
+async function statusAfterFetch(meta: RepoMeta, pre: SyncStatus): Promise<SyncStatus> {
+	const dir = repoDir(meta.id);
+	const remoteBefore = await readRemoteOid(dir, pre.branch);
+	await fetchRemote(meta);
+	const remoteAfter = await readRemoteOid(dir, pre.branch);
+	if (remoteBefore && remoteAfter === remoteBefore) return pre;
+	const { ahead, behind } = await countAheadBehind(dir, pre.branch, remoteAfter);
+	return { ...pre, ahead, behind };
+}
+
 export async function getSyncStatus(meta: RepoMeta): Promise<SyncStatus> {
 	const dir = repoDir(meta.id);
 	const branch = (await git.currentBranch({ fs, dir, fullname: false })) || meta.defaultBranch;
@@ -256,39 +365,8 @@ export async function getSyncStatus(meta: RepoMeta): Promise<SyncStatus> {
 		uncommitted.push(filepath);
 	}
 
-	let ahead = 0;
-	let behind = 0;
-	try {
-		const remote = `origin/${branch}`;
-		const localOid = await git.resolveRef({ fs, dir, ref: branch });
-		let remoteOid: string | null = null;
-		try {
-			remoteOid = await git.resolveRef({ fs, dir, ref: remote });
-		} catch {
-			remoteOid = null;
-		}
-		if (remoteOid && localOid !== remoteOid) {
-			try {
-				const localLog = await git.log({ fs, dir, ref: branch });
-				const remoteLog = await git.log({ fs, dir, ref: remote });
-				const localOids = new Set(localLog.map((c) => c.oid));
-				const remoteOids = new Set(remoteLog.map((c) => c.oid));
-				ahead = localLog.filter((c) => !remoteOids.has(c.oid)).length;
-				behind = remoteLog.filter((c) => !localOids.has(c.oid)).length;
-			} catch (err) {
-				// Incomplete fetch / missing objects — force a re-fetch next pull rather than crashing Sync
-				const msg = err instanceof Error ? err.message : String(err);
-				if (/could not find|not found/i.test(msg)) {
-					ahead = 0;
-					behind = 1;
-				} else {
-					throw err;
-				}
-			}
-		}
-	} catch {
-		// no remote tracking — leave ahead/behind at 0
-	}
+	const remoteOid = await readRemoteOid(dir, branch);
+	const { ahead, behind } = await countAheadBehind(dir, branch, remoteOid);
 
 	return {
 		clean: uncommitted.length === 0,
@@ -378,6 +456,7 @@ export async function commitAll(meta: RepoMeta, message: string): Promise<string
 			email: settings.authorEmail
 		}
 	});
+	invalidateSyncCache(meta.id);
 	return sha;
 }
 
@@ -417,6 +496,7 @@ export type DivergeContext = {
 
 export async function getDivergeContext(meta: RepoMeta): Promise<DivergeContext> {
 	await fetchRemote(meta);
+	invalidateSyncCache(meta.id);
 	const dir = repoDir(meta.id);
 	const status = await getSyncStatus(meta);
 	const branch = status.branch;
@@ -492,14 +572,13 @@ export async function pullRepo(meta: RepoMeta): Promise<void> {
 		throw new Error('Commit or discard local changes before pulling');
 	}
 
-	await fetchRemote(meta);
-	const status = await getSyncStatus(meta);
+	invalidateSyncCache(meta.id);
+	const status = await statusAfterFetch(meta, pre);
 	const branch = status.branch;
-	const settings = await getSettings();
-	const token = settings.token?.trim() || undefined;
 	const dir = repoDir(meta.id);
 
 	if (status.ahead === 0 && status.behind === 0) {
+		rememberSync(meta.id, status);
 		return;
 	}
 
@@ -516,59 +595,78 @@ export async function pullRepo(meta: RepoMeta): Promise<void> {
 	}
 
 	try {
-		await git.fastForward({
-			fs,
-			http,
-			dir,
-			ref: branch,
-			singleBranch: true,
-			onAuth: onAuth(token)
-		});
+		await fastForwardLocal(dir, branch);
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (/diverged|conflict|merge|fast.?forward|not.*ancestor/i.test(msg)) {
-			const diverge = new Error(
-				'Histories have diverged. Choose an AI resolve option, or resolve on another machine.'
-			);
-			(diverge as Error & { code?: string }).code = DIVERGED_CODE;
-			throw diverge;
-		}
-		if (authError(err)) {
-			throw new Error('Authentication failed. Check the token under Settings.');
-		}
-		throw err;
+		throw asDiverged(err);
 	}
+	rememberSync(meta.id, {
+		clean: true,
+		uncommitted: [],
+		ahead: 0,
+		behind: 0,
+		branch
+	});
 }
 
 /**
  * Fetch remote and fast-forward when safe (clean + behind only).
  * Never throws for expected sync states — returns the latest status instead.
+ * A recent check is reused so browsing folders does not fetch every click.
+ * Manual pull still calls `pullRepo`, which always fetches.
  */
-export async function autoPullIfBehind(meta: RepoMeta): Promise<{
-	status: SyncStatus;
-	pulled: boolean;
-}> {
+export async function autoPullIfBehind(meta: RepoMeta): Promise<AutoPullResult> {
+	const cached = syncCache.get(meta.id);
+	if (cached && Date.now() - cached.at < SYNC_TTL_MS) {
+		return { status: cached.status, pulled: false };
+	}
+
+	const epoch = syncEpoch.get(meta.id) ?? 0;
+	const pending = syncInflight.get(meta.id);
+	if (pending && pending.epoch === epoch) {
+		return pending.promise;
+	}
+
+	const promise = runAutoPull(meta).then((result) => {
+		if (result.cacheable && (syncEpoch.get(meta.id) ?? 0) === epoch) {
+			rememberSync(meta.id, result.status);
+		}
+		return { status: result.status, pulled: result.pulled };
+	});
+	const entry = { epoch, promise };
+	syncInflight.set(meta.id, entry);
+	try {
+		return await promise;
+	} finally {
+		if (syncInflight.get(meta.id) === entry) syncInflight.delete(meta.id);
+	}
+}
+
+async function runAutoPull(meta: RepoMeta): Promise<AutoPullResult & { cacheable: boolean }> {
 	const pre = await getSyncStatus(meta);
 	if (!pre.clean) {
-		return { status: pre, pulled: false };
+		return { status: pre, pulled: false, cacheable: true };
+	}
+
+	let status: SyncStatus;
+	try {
+		status = await statusAfterFetch(meta, pre);
+	} catch {
+		return { status: pre, pulled: false, cacheable: false };
+	}
+
+	if (!(status.behind > 0 && status.ahead === 0)) {
+		return { status, pulled: false, cacheable: true };
 	}
 
 	try {
-		await fetchRemote(meta);
+		await fastForwardLocal(repoDir(meta.id), status.branch);
+		return {
+			status: { clean: true, uncommitted: [], ahead: 0, behind: 0, branch: status.branch },
+			pulled: true,
+			cacheable: true
+		};
 	} catch {
-		return { status: await getSyncStatus(meta), pulled: false };
-	}
-
-	const mid = await getSyncStatus(meta);
-	if (!(mid.behind > 0 && mid.ahead === 0)) {
-		return { status: mid, pulled: false };
-	}
-
-	try {
-		await pullRepo(meta);
-		return { status: await getSyncStatus(meta), pulled: true };
-	} catch {
-		return { status: await getSyncStatus(meta), pulled: false };
+		return { status, pulled: false, cacheable: true };
 	}
 }
 
@@ -591,6 +689,7 @@ export async function pushRepo(meta: RepoMeta, opts?: { force?: boolean }): Prom
 			force: opts?.force === true,
 			onAuth: onAuth(token)
 		});
+		invalidateSyncCache(meta.id);
 	} catch (err) {
 		const msg = err instanceof Error ? err.message : String(err);
 		if (/non-fast-forward|rejected|fetch first/i.test(msg)) {
@@ -609,6 +708,7 @@ export async function resetToRemote(meta: RepoMeta): Promise<void> {
 	if (!status.clean) {
 		throw new Error('Commit or discard local changes before resetting');
 	}
+	invalidateSyncCache(meta.id);
 	await fetchRemote(meta);
 	const dir = repoDir(meta.id);
 	const branch = status.branch;
@@ -622,6 +722,13 @@ export async function resetToRemote(meta: RepoMeta): Promise<void> {
 		force: true
 	});
 	await git.checkout({ fs, dir, ref: branch, force: true });
+	rememberSync(meta.id, {
+		clean: true,
+		uncommitted: [],
+		ahead: 0,
+		behind: 0,
+		branch
+	});
 }
 
 export type ConflictFile = { path: string; local: string | null; remote: string | null };
@@ -632,6 +739,7 @@ export type ConflictFile = { path: string; local: string | null; remote: string 
  */
 export async function listMergeConflicts(meta: RepoMeta): Promise<ConflictFile[]> {
 	await fetchRemote(meta);
+	invalidateSyncCache(meta.id);
 	const dir = repoDir(meta.id);
 	const status = await getSyncStatus(meta);
 	const branch = status.branch;
@@ -718,6 +826,7 @@ export async function applyAiMergeAndCommit(
 		author,
 		parent: [localOid, remoteOid]
 	});
+	invalidateSyncCache(meta.id);
 }
 
 async function rmSafe(dir: string): Promise<void> {
