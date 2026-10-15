@@ -349,10 +349,20 @@ a.icon-btn.back-link svg {
 	border-left: 0.28rem solid var(--accent);
 }
 
+.listings {
+	display: grid;
+	gap: 2rem;
+}
+
+.listing {
+	display: grid;
+	gap: 0.3rem;
+}
+
 .section-label {
 	display: flex;
 	justify-content: space-between;
-	margin: 0 0 0.55rem;
+	margin: 0;
 	color: var(--accent);
 	font-family: var(--font-mono);
 	font-size: 0.72rem;

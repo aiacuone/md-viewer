@@ -8,7 +8,6 @@
 
 	const node = $derived(data.node);
 	const parentHref = $derived.by(() => {
-		if (data.backTo) return data.backTo;
 		if (node.kind === 'dir' && node.path === '') return '/welcome';
 		const parent =
 			node.kind === 'file'
@@ -46,38 +45,44 @@
 			preview
 		/>
 
-		{#if folders.length}
-			<p class="section-label">Folders <span>{folders.length}</span></p>
-			<div class="card tree">
-				<ul>
-					{#each folders as entry}
-						<li class="row-item">
-							<a class="row-main dir with-mark" href="/preview/{entry.path}">
-								<span class="type-mark folder-mark" aria-hidden="true"></span>
-								<span><strong>{entry.name}</strong><small class="row-sub">{entry.path}</small></span>
-							</a>
-							<FavouriteStar preview label={entry.name} />
-						</li>
-					{/each}
-				</ul>
-			</div>
-		{/if}
-		{#if files.length}
-			<p class="section-label">Markdown files <span>{files.length}</span></p>
-			<div class="card tree">
-				<ul>
-					{#each files as entry}
-						<li class="row-item">
-							<a class="row-main with-mark" href="/preview/{entry.path}">
-								<span class="type-mark file-mark" aria-hidden="true"></span>
-								<span><strong>{entry.name}</strong><small class="row-sub">{entry.path}</small></span>
-							</a>
-							<FavouriteStar preview label={entry.name} />
-						</li>
-					{/each}
-				</ul>
-			</div>
-		{/if}
+		<div class="listings">
+			{#if folders.length}
+				<div class="listing">
+					<p class="section-label">Folders <span>{folders.length}</span></p>
+					<div class="card tree">
+						<ul>
+							{#each folders as entry}
+								<li class="row-item">
+									<a class="row-main dir with-mark" href="/preview/{entry.path}">
+										<span class="type-mark folder-mark" aria-hidden="true"></span>
+										<span><strong>{entry.name}</strong><small class="row-sub">{entry.path}</small></span>
+									</a>
+									<FavouriteStar preview label={entry.name} />
+								</li>
+							{/each}
+						</ul>
+					</div>
+				</div>
+			{/if}
+			{#if files.length}
+				<div class="listing">
+					<p class="section-label">Markdown files <span>{files.length}</span></p>
+					<div class="card tree">
+						<ul>
+							{#each files as entry}
+								<li class="row-item">
+									<a class="row-main with-mark" href="/preview/{entry.path}">
+										<span class="type-mark file-mark" aria-hidden="true"></span>
+										<span><strong>{entry.name}</strong><small class="row-sub">{entry.path}</small></span>
+									</a>
+									<FavouriteStar preview label={entry.name} />
+								</li>
+							{/each}
+						</ul>
+					</div>
+				</div>
+			{/if}
+		</div>
 	</section>
 {:else}
 	<section class="stack file-page">

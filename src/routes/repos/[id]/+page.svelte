@@ -120,51 +120,57 @@
 			<p class="muted">No markdown files or folders here.</p>
 		</div>
 	{:else}
-		{#if folders.length}
-			<p class="section-label">Folders <span>{folders.length}</span></p>
-			<div class="card tree">
-				<ul>
-					{#each folders as entry}
-						<li class="row-item">
-							<button type="button" class="row-main dir with-mark" onclick={() => openPath(entry.path)}>
-								<span class="type-mark folder-mark" aria-hidden="true"></span>
-								<span><strong>{treeEntryLabel(entry)}</strong><small class="row-sub">{entry.path || entry.name}</small></span>
-							</button>
-							<FavouriteStar
-								favourited={favouriteSet.has(entry.path)}
-								busy={starBusy === entry.path}
-								label={treeEntryLabel(entry)}
-								onclick={() => toggleStar(entry.path)}
-							/>
-						</li>
-					{/each}
-				</ul>
-			</div>
-		{/if}
-		{#if files.length}
-			<p class="section-label">Markdown files <span>{files.length}</span></p>
-			<div class="card tree">
-				<ul>
-				{#each files as entry}
-					<li class="row-item">
-						<a
-							class="row-main with-mark"
-							href={`/repos/${data.repo.id}/file?path=${encodeURIComponent(entry.path)}`}
-						>
-							<span class="type-mark file-mark" aria-hidden="true"></span>
-							<span><strong>{treeEntryLabel(entry)}</strong><small class="row-sub">{entry.path}</small></span>
-						</a>
-						<FavouriteStar
-							favourited={favouriteSet.has(entry.path)}
-							busy={starBusy === entry.path}
-							label={treeEntryLabel(entry)}
-							onclick={() => toggleStar(entry.path)}
-						/>
-					</li>
-				{/each}
-				</ul>
-			</div>
-		{/if}
+		<div class="listings">
+			{#if folders.length}
+				<div class="listing">
+					<p class="section-label">Folders <span>{folders.length}</span></p>
+					<div class="card tree">
+						<ul>
+							{#each folders as entry}
+								<li class="row-item">
+									<button type="button" class="row-main dir with-mark" onclick={() => openPath(entry.path)}>
+										<span class="type-mark folder-mark" aria-hidden="true"></span>
+										<span><strong>{treeEntryLabel(entry)}</strong><small class="row-sub">{entry.path || entry.name}</small></span>
+									</button>
+									<FavouriteStar
+										favourited={favouriteSet.has(entry.path)}
+										busy={starBusy === entry.path}
+										label={treeEntryLabel(entry)}
+										onclick={() => toggleStar(entry.path)}
+									/>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				</div>
+			{/if}
+			{#if files.length}
+				<div class="listing">
+					<p class="section-label">Markdown files <span>{files.length}</span></p>
+					<div class="card tree">
+						<ul>
+						{#each files as entry}
+							<li class="row-item">
+								<a
+									class="row-main with-mark"
+									href={`/repos/${data.repo.id}/file?path=${encodeURIComponent(entry.path)}`}
+								>
+									<span class="type-mark file-mark" aria-hidden="true"></span>
+									<span><strong>{treeEntryLabel(entry)}</strong><small class="row-sub">{entry.path}</small></span>
+								</a>
+								<FavouriteStar
+									favourited={favouriteSet.has(entry.path)}
+									busy={starBusy === entry.path}
+									label={treeEntryLabel(entry)}
+									onclick={() => toggleStar(entry.path)}
+								/>
+							</li>
+						{/each}
+						</ul>
+					</div>
+				</div>
+			{/if}
+		</div>
 	{/if}
 </section>
 
