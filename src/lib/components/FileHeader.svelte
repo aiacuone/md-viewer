@@ -72,14 +72,20 @@
 		letter-spacing: -0.03em;
 		word-break: break-all;
 		min-width: 0;
-		flex: 1 1 auto;
+		flex: 0 1 auto;
+	}
+
+	.title-block {
+		min-width: 0;
+		max-width: 100%;
 	}
 
 	.title-row {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: 0.15rem;
 		min-width: 0;
+		max-width: 100%;
 	}
 
 	.title-row > div {

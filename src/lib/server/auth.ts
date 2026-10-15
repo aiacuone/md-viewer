@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { env } from '$env/dynamic/private';
 
 export const SESSION_COOKIE = 'md_session';
 export const STATE_COOKIE = 'md_oauth_state';
@@ -9,13 +10,16 @@ const hits = new Map<string, number[]>();
 
 type SessionPayload = { email: string; exp: number };
 
+function readEnv(name: string): string {
+	return env[name]?.trim() ?? '';
+}
+
 function authSecret(): string | null {
-	const secret = process.env.AUTH_SECRET?.trim();
-	return secret || null;
+	return readEnv('AUTH_SECRET') || null;
 }
 
 export function publicOrigin(url: URL): string {
-	const configured = process.env.PUBLIC_ORIGIN?.trim().replace(/\/$/, '');
+	const configured = readEnv('PUBLIC_ORIGIN').replace(/\/$/, '');
 	return configured || url.origin;
 }
 
@@ -33,7 +37,7 @@ export function cookieBase(secure: boolean) {
 }
 
 function allowedList(): string[] {
-	return (process.env.ALLOWED_EMAILS ?? '')
+	return readEnv('ALLOWED_EMAILS')
 		.split(',')
 		.map((email) => email.trim().toLowerCase())
 		.filter(Boolean);
@@ -98,16 +102,12 @@ export function newState(): string {
 }
 
 export function googleConfigured(): boolean {
-	return Boolean(
-		process.env.GOOGLE_CLIENT_ID?.trim() &&
-			process.env.GOOGLE_CLIENT_SECRET?.trim() &&
-			authSecret()
-	);
+	return Boolean(readEnv('GOOGLE_CLIENT_ID') && readEnv('GOOGLE_CLIENT_SECRET') && authSecret());
 }
 
 export function googleAuthUrl(origin: string, state: string): string {
 	const params = new URLSearchParams({
-		client_id: process.env.GOOGLE_CLIENT_ID?.trim() ?? '',
+		client_id: readEnv('GOOGLE_CLIENT_ID'),
 		redirect_uri: `${origin}/auth/callback/google`,
 		response_type: 'code',
 		scope: 'openid email',
@@ -123,8 +123,8 @@ export async function exchangeGoogleCode(
 ): Promise<{ email: string; emailVerified: boolean }> {
 	const body = new URLSearchParams({
 		code,
-		client_id: process.env.GOOGLE_CLIENT_ID?.trim() ?? '',
-		client_secret: process.env.GOOGLE_CLIENT_SECRET?.trim() ?? '',
+		client_id: readEnv('GOOGLE_CLIENT_ID'),
+		client_secret: readEnv('GOOGLE_CLIENT_SECRET'),
 		redirect_uri: `${origin}/auth/callback/google`,
 		grant_type: 'authorization_code'
 	});
