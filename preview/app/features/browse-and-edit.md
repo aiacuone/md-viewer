@@ -1,42 +1,32 @@
 # Browse and edit
 
-The signed-in app is a folder browser on top of a clone, and an editor on top of one markdown file.
+The signed-in app is a folder browser over a clone, and an editor for one markdown file.
 
 ## Browsing
 
-The repo page lists directories first, then markdown files. Names drop a trailing `.md` in the label; the path on disk keeps it. Folders sit in a card. Files sit under the card. A star pins an entry. Pinned entries sort above the rest, and the pin is remembered in app settings for that repo id.
+Directories are listed first, then markdown files. Labels drop a trailing `.md`; the path on disk keeps it. A star pins an entry. Pinned entries sort first, and the pin is stored in app settings for that repo.
 
-A breadcrumb walks back up the folder. Home is the repo list. The repo name is the root of that clone. Each further crumb is a path segment, shown with the same display name as the tree.
+The breadcrumb walks back up. Home is the repo list, the repo name is the clone root, and each further crumb is a path segment.
 
-If the repo was added with a content root, the tree starts in that subdirectory. A README that lives at the git root, outside that subdirectory, is still listed, under a path prefixed with `@root`. That exception exists so a monorepo can hide its code and still show its readme. Paths are resolved on the server and rejected if they escape the content root or, for `@root`, the clone.
+A content root starts the tree in a subdirectory. A README at the git root, outside that subdirectory, is still listed under `@root`, so a monorepo can hide its code and still show its readme. The server rejects paths that escape the content root or, for `@root`, the clone.
 
-Empty directories and non-markdown files are omitted. The preview you are in uses the same rule: only `.md` files and folders appear.
+Empty directories and non-markdown files are omitted. This preview uses the same rule.
 
 ## Opening a file
 
-The file page has two views.
+- **Preview** renders the current buffer. Leading YAML front matter is stripped first, so a `---` block does not become a rule.
+- **Edit** is CodeMirror. Save is the button or Cmd/Ctrl+S.
 
-- **Preview** renders HTML from the current buffer. Leading YAML front matter is removed first, so a `---` block does not become a horizontal rule and a paragraph of keys.
-- **Edit** is CodeMirror with the markdown language mode. Save is Cmd/Ctrl+S as well as the button.
+Save sends the buffer to `PUT /api/repos/:id/file`. The server writes the path inside the clone and does not commit. "Unsaved buffer" means the editor differs from the last save. "Saved to working tree" means it matches. The tree can still differ from the last commit, which is what the diff and the commit dialog show.
 
-Save sends the path and the buffer to `PUT /api/repos/:id/file`. The server writes that path inside the clone. It does not commit. The page then treats the buffer as clean and reloads server data.
+## Diff, revert, delete
 
-The status line distinguishes the two layers: "Unsaved buffer" while the editor differs from what was last saved, and "Saved to working tree" once it matches. The working tree can still differ from the last commit. That second difference is what the diff and the commit dialog are about.
+The diff compares the saved file with `HEAD`. A dirty buffer can also be diffed against the saved text in the browser. Discard restores the buffer to the saved tree. Revert loads `HEAD` into the buffer and does not write until you save.
 
-## Diff and revert
+Delete removes the file from the working tree and drops a favourite for that path. The deletion stays uncommitted until you commit it.
 
-The diff control loads the saved file against `HEAD` for that path. If the buffer is dirty, the page can also show a unified diff of the buffer against the saved text, computed in the browser with the same diff helper the server uses.
+## Links
 
-From the diff you can discard unsaved edits, which restores the buffer to the saved working tree, or revert the file to the last commit, which loads `GET` with `ref=HEAD` into the buffer. Revert does not write until you save.
+Relative links ending in `.md` or `.markdown` become in-app URLs: `/repos/:id/file?path=...` when signed in, and `/preview/...` here, with the extension removed. `http:`, `https:`, `mailto:`, and `tel:` links open in a new tab. A `#fragment` on the same page is left alone.
 
-## Delete
-
-Delete removes the markdown file from the working tree. A favourite pointing at that path is dropped so the star does not survive the file. The deletion is still uncommitted until you commit it.
-
-## Links inside the preview
-
-Relative links that end in `.md` or `.markdown` are rewritten to an in-app URL. In a signed-in repo that is `/repos/:id/file?path=...`. In this preview it is `/preview/...` with the extension removed. A link that starts with `http:`, `https:`, `mailto:`, or `tel:` is left alone and opened in a new tab. A `#fragment` on the same page is left alone.
-
-That rewriting is why [Sync](sync.md) and [Why it works](../../markdown/why-it-works.md) open as pages rather than as file downloads.
-
-Editing itself is disabled in this preview. The editor, the save button, and the diff are visible on a file page so the layout matches the signed-in app, and they do not run.
+That is why [Sync](sync.md) and [Why it works](../../markdown/why-it-works.md) open as pages. Editing is disabled in this preview. The editor, save, and diff stay visible so the layout matches the signed-in app.

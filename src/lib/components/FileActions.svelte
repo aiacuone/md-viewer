@@ -84,8 +84,8 @@
 	<button
 		type="button"
 		class="icon-btn"
-		aria-label="Convert"
-		title="Convert"
+		aria-label={preview ? 'AI' : 'Convert'}
+		title={preview ? 'AI' : 'Convert'}
 		data-preview-disabled={preview ? '' : undefined}
 		onclick={preview ? undefined : onConvert}
 	>
@@ -180,7 +180,7 @@
 {:else}
 	<nav class="action-bar mobile-only" aria-label="File actions">
 		{#if preview}
-			<a class="icon-btn action-back" href={backHref} aria-label="Back" title="Back">
+			<a class="icon-btn action-back" href={backHref} data-history-back aria-label="Back" title="Back">
 				<Icon name="back" />
 			</a>
 		{:else}

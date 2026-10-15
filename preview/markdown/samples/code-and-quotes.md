@@ -33,7 +33,7 @@ When local and remote have each moved, pull throws a specific failure rather tha
 Histories have diverged. Choose an AI resolve option, or resolve on another machine.
 ```
 
-The error carries the code `HISTORIES_DIVERGED`. The client then asks for resolve options. See [Convert and resolve](../../app/features/convert.md).
+The error carries the code `HISTORIES_DIVERGED`. The client then asks for resolve options. See [AI](../../app/features/AI.md).
 
 ## A quotation
 

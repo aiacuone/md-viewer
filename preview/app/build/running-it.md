@@ -35,7 +35,7 @@ nginx then does three jobs.
 
 - Serves `/preview` and the built assets from disk, with a rate limit, without waking Node.
 - Proxies login and the Google callback to Node, with a tighter limit.
-- Proxies every other path only when the session cookie is present. Guests are sent to `/preview`. API calls without a cookie get 401.
+- Proxies the welcome and sign-in routes for guests. Other app pages require a session, and guests are sent to `/welcome`. API calls without a cookie get 401.
 
 Port 3000 should not stay open on the public security list once that works. The certificate is for the hostname, not for the raw IP, because that is what Google will redirect to.
 

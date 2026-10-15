@@ -7,8 +7,7 @@
 	import PasteNotesModal from '$lib/components/PasteNotesModal.svelte';
 	import DeleteFileModal from '$lib/components/DeleteFileModal.svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
-	import BackLink from '$lib/components/BackLink.svelte';
-	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
+	import FileHeader from '$lib/components/FileHeader.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import FileActions from '$lib/components/FileActions.svelte';
 	import type { DiffFile } from '$lib/types';
@@ -54,6 +53,21 @@
 	const fileTitle = $derived(treeEntryLabel({ name: data.path.split('/').pop() ?? data.path, path: data.path, type: 'file' }));
 	const sync = $derived(syncCaption(data.status));
 	const repoHref = $derived(`/repos/${data.repo.id}`);
+	const fileCrumbs = $derived.by(() => {
+		const items: { label: string; href?: string }[] = [{ label: data.repo.name, href: repoHref }];
+		const parts = data.path.split('/').filter(Boolean);
+		const file = parts.pop();
+		let acc = '';
+		for (const part of parts) {
+			acc = acc ? `${acc}/${part}` : part;
+			items.push({
+				label: displayName(part),
+				href: `/repos/${data.repo.id}?path=${encodeURIComponent(acc)}`
+			});
+		}
+		if (file) items.push({ label: fileTitle });
+		return items;
+	});
 	const parentFolder = $derived.by(() => {
 		const parts = data.path.split('/').filter(Boolean);
 		parts.pop();
@@ -200,52 +214,42 @@
 <svelte:window onbeforeunload={onBeforeUnload} />
 
 <section class="stack file-page">
-	<div class="header-row">
-		<div>
-			<p class="breadcrumb">{data.repo.name}{data.path ? ` / ${data.path}` : ''}</p>
-			<div class="title-row">
-				<div class="desktop-only">
-					<BackLink fallback={repoHref} />
-				</div>
-				<h1>{fileTitle}</h1>
-				<FavouriteStar
-					favourited={favourited}
-					busy={starBusy}
-					label={fileTitle}
-					onclick={toggleStar}
-				/>
-			</div>
-			<p class="muted file-path" title={data.path}>{data.path}</p>
-		</div>
-	</div>
-
-	<div class="file-toolbar desktop-only">
-		<p class="sync-status">
-			<strong>{sync.branch}</strong>
-			<span>{sync.detail}</span>
-		</p>
-		<FileActions
-			part="tools"
-			{viewMode}
-			{showDiff}
-			{dirty}
-			{saving}
-			onView={(mode) => (viewMode = mode)}
-			onSave={save}
-			onConvert={() => (pasteOpen = true)}
-			onPull={() => runPull?.()}
-			onPush={() => runPush?.()}
-			onDiff={toggleDiff}
-			onDelete={() => {
-				deleteError = '';
-				deleteOpen = true;
-			}}
-		/>
-		<p class="saved-note" aria-live="polite">
-			{#if dirty}Unsaved buffer{:else}Saved to working tree{/if}
-			{#if viewMode === 'edit'} · Cmd/Ctrl+S to save{/if}
-		</p>
-	</div>
+	<FileHeader
+		crumbs={fileCrumbs}
+		title={fileTitle}
+		backHref={repoHref}
+		{favourited}
+		busy={starBusy}
+		onFavourite={toggleStar}
+	>
+		{#snippet toolbar()}
+			<p class="sync-status">
+				<strong>{sync.branch}</strong>
+				<span>{sync.detail}</span>
+			</p>
+			<FileActions
+				part="tools"
+				{viewMode}
+				{showDiff}
+				{dirty}
+				{saving}
+				onView={(mode) => (viewMode = mode)}
+				onSave={save}
+				onConvert={() => (pasteOpen = true)}
+				onPull={() => runPull?.()}
+				onPush={() => runPush?.()}
+				onDiff={toggleDiff}
+				onDelete={() => {
+					deleteError = '';
+					deleteOpen = true;
+				}}
+			/>
+			<p class="saved-note" aria-live="polite">
+				{#if dirty}Unsaved buffer{:else}Saved to working tree{/if}
+				{#if viewMode === 'edit'} · Cmd/Ctrl+S to save{/if}
+			</p>
+		{/snippet}
+	</FileHeader>
 
 	{#if errorMsg}
 		<p class="error">{errorMsg}</p>
@@ -303,7 +307,7 @@
 		{#if viewMode === 'edit'}
 			<MarkdownEditor bind:value={content} onSave={save} />
 		{:else}
-			<article class="preview card">{@html html}</article>
+			<article class="markdown-preview card">{@html html}</article>
 		{/if}
 	</div>
 </section>
@@ -352,128 +356,12 @@
 	showTrigger={false}
 />
 <style>
-	h1 {
-		margin: 0;
-		font-size: 1.25rem;
-		word-break: break-all;
-	}
-
-	.title-row {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		min-width: 0;
-	}
-
-	.title-row h1 {
-		min-width: 0;
-		flex: 1 1 auto;
-	}
-
-	.file-path {
-		margin: 0.15rem 0 0;
-		font-family: var(--font-mono);
-		font-size: 0.8rem;
-		word-break: break-all;
-	}
-
-	.header-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		gap: 1rem;
-		flex-wrap: wrap;
-	}
-
 	.pane {
 		position: relative;
 		min-height: min(70vh, 720px);
 		min-width: 0;
 		max-width: 100%;
 		overflow-x: hidden;
-	}
-
-	.preview {
-		overflow: auto;
-		min-height: min(70vh, 720px);
-		font-size: 0.85rem;
-		line-height: 1.5;
-		letter-spacing: -0.015em;
-		padding: 0.85rem 0.95rem;
-	}
-
-	.preview :global(h1),
-	.preview :global(h2),
-	.preview :global(h3),
-	.preview :global(h4),
-	.preview :global(h5),
-	.preview :global(h6) {
-		line-height: 1.2;
-		letter-spacing: -0.025em;
-	}
-
-	.preview :global(h1) {
-		font-size: 1.45em;
-		margin: 0.55em 0 0.2em;
-	}
-
-	.preview :global(h2) {
-		font-size: 1.25em;
-		margin: 0.55em 0 0.18em;
-	}
-
-	.preview :global(h3) {
-		font-size: 1.1em;
-		margin: 0.5em 0 0.15em;
-	}
-
-	.preview :global(h4),
-	.preview :global(h5),
-	.preview :global(h6) {
-		font-size: 1em;
-		margin: 0.45em 0 0.15em;
-	}
-
-	.preview :global(p),
-	.preview :global(ul),
-	.preview :global(ol) {
-		margin: 0.55em 0;
-	}
-
-	.preview :global(pre) {
-		overflow: auto;
-		background: var(--bg);
-		padding: 0.65rem;
-		border-radius: var(--radius);
-		font-size: 0.92em;
-	}
-
-	.preview :global(code) {
-		font-family: var(--font-mono);
-		font-size: 0.88em;
-	}
-
-	.preview :global(table) {
-		width: 100%;
-		border-collapse: collapse;
-		margin: 0.75em 0;
-		font-size: 0.95em;
-		border: 1px solid var(--border);
-		border-radius: 8px;
-		overflow: hidden;
-	}
-
-	.preview :global(thead th) {
-		background: var(--bg-soft);
-		font-weight: 700;
-		text-align: left;
-	}
-
-	.preview :global(th),
-	.preview :global(td) {
-		border: 1px solid var(--border);
-		padding: 0.55rem 0.7rem;
-		vertical-align: top;
 	}
 
 	.diff-panel {
@@ -489,10 +377,6 @@
 	@media (max-width: 767px) {
 		.file-page {
 			padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
-		}
-
-		h1 {
-			margin-top: 0;
 		}
 	}
 </style>

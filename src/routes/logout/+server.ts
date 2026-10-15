@@ -4,5 +4,5 @@ import { SESSION_COOKIE, cookieBase, isSecureOrigin, publicOrigin } from '$lib/s
 
 export const POST: RequestHandler = ({ cookies, url }) => {
 	cookies.delete(SESSION_COOKIE, cookieBase(isSecureOrigin(publicOrigin(url))));
-	redirect(303, '/preview');
+	redirect(303, '/welcome');
 };

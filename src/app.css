@@ -22,6 +22,10 @@
 	box-sizing: border-box;
 }
 
+html {
+	scrollbar-gutter: stable;
+}
+
 html,
 body {
 	margin: 0;
@@ -213,6 +217,21 @@ a.icon-btn.active {
 	color: var(--accent);
 }
 
+button.icon-btn.back-link,
+a.icon-btn.back-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1rem;
+	height: 1rem;
+	align-self: center;
+	border: none;
+	background: none;
+	border-radius: 0;
+	color: var(--ink-muted);
+	line-height: 0;
+}
+
 button.with-icon {
 	display: inline-flex;
 	align-items: center;
@@ -238,10 +257,11 @@ button.with-icon {
 	text-decoration: none;
 }
 
-.back-link svg {
+button.icon-btn.back-link svg,
+a.icon-btn.back-link svg {
 	flex-shrink: 0;
-	width: 0.85em;
-	height: 0.85em;
+	width: 0.6rem;
+	height: 0.6rem;
 	display: block;
 }
 
@@ -382,4 +402,87 @@ button.with-icon {
 	margin: 0;
 	color: var(--ink-muted);
 	font-size: 0.75rem;
+}
+
+.markdown-preview {
+	overflow: auto;
+	min-height: min(70vh, 720px);
+	padding: 0.85rem 0.95rem;
+	font-size: 0.85rem;
+	line-height: 1.5;
+	letter-spacing: -0.015em;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4,
+.markdown-preview h5,
+.markdown-preview h6 {
+	line-height: 1.2;
+	letter-spacing: -0.025em;
+}
+
+.markdown-preview h1 {
+	margin: 0.55em 0 0.2em;
+	font-size: 1.45em;
+}
+
+.markdown-preview h2 {
+	margin: 0.55em 0 0.18em;
+	font-size: 1.25em;
+}
+
+.markdown-preview h3 {
+	margin: 0.5em 0 0.15em;
+	font-size: 1.1em;
+}
+
+.markdown-preview h4,
+.markdown-preview h5,
+.markdown-preview h6 {
+	margin: 0.45em 0 0.15em;
+	font-size: 1em;
+}
+
+.markdown-preview p,
+.markdown-preview ul,
+.markdown-preview ol {
+	margin: 0.55em 0;
+}
+
+.markdown-preview pre {
+	overflow: auto;
+	padding: 0.65rem;
+	border-radius: var(--radius);
+	background: var(--bg);
+	font-size: 0.92em;
+}
+
+.markdown-preview code {
+	font-family: var(--font-mono);
+	font-size: 0.88em;
+}
+
+.markdown-preview table {
+	width: 100%;
+	margin: 0.75em 0;
+	overflow: hidden;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	border-collapse: collapse;
+	font-size: 0.95em;
+}
+
+.markdown-preview thead th {
+	background: var(--bg-soft);
+	font-weight: 700;
+	text-align: left;
+}
+
+.markdown-preview th,
+.markdown-preview td {
+	padding: 0.55rem 0.7rem;
+	border: 1px solid var(--border);
+	vertical-align: top;
 }

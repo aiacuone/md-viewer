@@ -41,7 +41,7 @@ An aside that is not part of the argument belongs in a quotation:
 
 That sentence is also the test for a feature in MD Viewer. Favourites, the default repo, and the DeepSeek key are app state. They live in `data/settings.json` on the machine that runs the app, not inside the markdown, so a clone of the notes does not depend on them.
 
-Strikethrough marks a claim you withdrew but want to leave visible: ~~the preview stores your edits~~. It does not. In this preview, Save, Commit, and Convert are shown and disabled.
+Strikethrough marks a claim you withdrew but want to leave visible: ~~the preview stores your edits~~. It does not. In this preview, Save, Commit, and AI are shown and disabled.
 
 ## A list you can actually use
 

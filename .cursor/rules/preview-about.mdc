@@ -6,6 +6,6 @@ alwaysApply: false
 
 # Preview About stays current
 
-The preview home reads its summary from `src/lib/preview/about.ts`. The tool names are filled from `package.json` at build time.
+The landing page reads its summary from `src/lib/preview/about.ts`. Links under that paragraph open the preview notes, including the stack page, instead of repeating the tool list.
 
 When a change adds, removes, or renames something a visitor can see (browse, edit, save, commit, pull, push, DeepSeek, favourites, or similar), update `aboutText` in that same change. Do not add a second copy of the app chrome for the preview.

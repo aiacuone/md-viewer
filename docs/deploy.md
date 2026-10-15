@@ -186,7 +186,7 @@ Edit the one line in `/etc/md-viewer.env`:
 ALLOWED_EMAILS=you@gmail.com,someone@gmail.com
 ```
 
-Then `sudo systemctl restart md-viewer`. No git change and no rebuild. The address must be the email Google returns for that account. Anyone else is sent back to the preview and does not get a session.
+Then `sudo systemctl restart md-viewer`. No git change and no rebuild. The address must be the email Google returns for that account. Anyone else is sent back to the welcome page and does not get a session.
 
 ### 4. Nginx in front of Node
 
@@ -194,7 +194,7 @@ Install nginx and certbot (or a Cloudflare origin certificate), then install [`d
 
 - `/preview` and `/_app/` are files under `~/md-viewer/build`. A request is rate-limited and does not reach Node.
 - `/login`, `/auth/`, and `/logout` are proxied to `127.0.0.1:3000`, with a tighter rate limit.
-- Other paths reach Node only when the `md_session` cookie is present. Guests are redirected to `/preview`. `/api/` without a cookie returns 401.
+- `/welcome`, `/login`, and `/auth/` reach Node for guests. Other app pages require the `md_session` cookie, and guests are redirected to `/welcome`. `/api/` without a cookie returns 401.
 
 The nginx config already uses `md-viewer-aiacuone.duckdns.org`. Enable the site and reload nginx. Confirm `https://md-viewer-aiacuone.duckdns.org/preview` loads, and that `http://YOUR_IP:3000` no longer answers from outside.
 

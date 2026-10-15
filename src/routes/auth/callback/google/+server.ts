@@ -25,12 +25,12 @@ export const GET: RequestHandler = async ({ cookies, url, getClientAddress }) =>
 	if (!state || !saved || !safeEqual(state, saved)) redirect(303, '/login?error=state');
 
 	const code = url.searchParams.get('code');
-	if (!code) redirect(303, '/preview?denied=1');
+	if (!code) redirect(303, '/welcome?denied=1');
 
 	try {
 		const profile = await exchangeGoogleCode(origin, code);
 		if (!profile.email || !profile.emailVerified || !isAllowed(profile.email)) {
-			redirect(303, '/preview?denied=1');
+			redirect(303, '/welcome?denied=1');
 		}
 		cookies.set(SESSION_COOKIE, signSession(profile.email), {
 			...cookieBase(secure),

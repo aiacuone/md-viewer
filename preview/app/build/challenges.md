@@ -2,7 +2,7 @@
 
 The app looks like a thin UI over git. Most of the difficult behaviour is the gap between what a person expects from the `git` command and what a small server can safely do with a pure-JavaScript git implementation, a 1 GB virtual machine, and a public URL.
 
-This page is the long one on that subject. The feature descriptions stay in [Sync](../features/sync.md), [Browse and edit](../features/browse-and-edit.md), and [Convert and resolve](../features/convert.md).
+This page is the long one on that subject. The feature descriptions stay in [Sync](../features/sync.md), [Browse and edit](../features/browse-and-edit.md), and [AI](../features/AI.md).
 
 ## Git without the git binary
 
@@ -66,7 +66,7 @@ Front matter is a second parsing problem. A file that starts with `---` is valid
 
 The public preview adds a constraint the signed-in app does not have. The route is prerendered. Every folder and every markdown file must be known at build time, which `previewEntryParams` does by walking `preview/` and emitting a path for each directory and each `.md` file with the extension removed. A file added after the build does not exist as a page until the next build. Client-side routing is off, so each open is a full navigation to HTML that already contains the rendered body. That is what allows nginx to serve `/preview` from the build directory without asking Node.
 
-Keeping that preview honest is its own small problem. The disabled buttons are the same components as the real ones, with a `preview` flag, so the layout cannot drift into a separate mock. The short paragraph on the preview home is a string in `src/lib/preview/about.ts`, and the tool names are read from `package.json` at build time. When a visible feature appears or disappears, that paragraph has to change in the same edit. A second, preview-only chrome would mean every UI change happens twice.
+Keeping that preview honest is its own small problem. The disabled buttons are the same components as the real ones, with a `preview` flag, so the layout cannot drift into a separate mock. The short paragraph on the landing page is a string in `src/lib/preview/about.ts`. Links under it open these notes, including the stack page, instead of repeating the tool list. When a visible feature appears or disappears, that paragraph has to change in the same edit. A second, preview-only chrome would mean every UI change happens twice.
 
 ## A machine with 1 GB of RAM
 

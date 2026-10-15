@@ -1,48 +1,46 @@
 # Stack
 
-The app is one Node process. The browser is a SvelteKit client. Notes are files in a git clone on the server. There is no separate database.
+One Node process. The browser is a SvelteKit client. Notes are files in a git clone. There is no separate database.
 
 ## UI
 
 | Piece | Role |
 |---|---|
-| Svelte 5 | Components, using runes (`$state`, `$derived`, `$props`) |
-| SvelteKit | Routes, form actions, server `load`, and the API under `src/routes/api` |
-| TypeScript | Types for repos, sync status, diffs, and resolve options |
+| Svelte 5 | Components, using runes |
+| SvelteKit | Routes, form actions, server `load`, and `src/routes/api` |
+| TypeScript | Types for repos, sync, diffs, and resolve options |
 | Vite | Dev server and production build |
-| CodeMirror 6 | The editor, with `@codemirror/lang-markdown` |
+| CodeMirror 6 | Editor, with the markdown language mode |
 | marked | Markdown to HTML |
-| vite-plugin-pwa | Web app manifest and a service worker that updates itself |
+| vite-plugin-pwa | Manifest and a service worker that updates itself |
 
-The file page renders markdown on the client while you edit, so the preview tracks the buffer. The public notebook you are reading is rendered on the server at build time: the preview route is prerendered and has client-side routing turned off, which lets nginx serve those pages as files.
+While you edit, the file page renders markdown in the browser. This notebook is rendered at build time: the preview route is prerendered, so nginx can serve it as files.
 
 ## Git and files
 
-[isomorphic-git](https://isomorphic-git.org/) implements clone, fetch, fast-forward, commit, push, and the status matrix inside Node. The HTTP client is `isomorphic-git/http/node`. The server passes Node's `fs` into the library. Clones live in `data/repos/<id>/`.
+[isomorphic-git](https://isomorphic-git.org/) does clone, fetch, fast-forward, commit, push, and status inside Node. Clones live in `data/repos/<id>/`.
 
-Two JSON files next to the clones hold app state:
+Two gitignored JSON files hold app state, and a deploy leaves `data/` in place:
 
-- `data/repos.json` is the list of remotes, ids, and content roots.
-- `data/settings.json` holds the author name and email, the git token, the DeepSeek key, the default repo, and favourites.
-
-Both are gitignored. A deploy updates the application code and leaves `data/` in place.
+- `data/repos.json` lists remotes, ids, and content roots.
+- `data/settings.json` holds the author, git token, DeepSeek key, default repo, and favourites.
 
 ## AI
 
-DeepSeek is called only from the server, so the API key is not sent to the browser. `src/lib/server/ai.ts` posts to the chat-completions endpoint and can require a JSON object. Callers are the convert route and the resolve routes.
+DeepSeek is called only from the server, so the key never reaches the browser. The AI routes are paste-to-markdown and resolve.
 
-## How a request is split
+## Requests
 
-SvelteKit's Node adapter serves the signed-in app. In production, nginx sits in front.
+nginx sits in front of SvelteKit's Node adapter.
 
-- `/preview` and the built client assets are files. A guest never needs Node to read this notebook.
-- `/login`, `/auth/`, and `/logout` are proxied to Node, with a tighter rate limit.
-- Any other path reaches Node only when the session cookie is present. Guests are redirected to `/preview`. `/api/` without a cookie returns 401.
+- `/preview` and the built client assets are files. A guest can read this notebook without Node.
+- `/login`, `/auth/`, and `/logout` are proxied, with a tighter rate limit.
+- Welcome and sign-in reach Node. Other pages need a session, and guests are sent to `/welcome`. `/api/` without a cookie returns 401.
 
-The session is an HMAC of the email and an expiry, signed with `AUTH_SECRET`, in an HTTP-only cookie. Google is used to learn the email. The email must appear in `ALLOWED_EMAILS` or the callback sends the visitor back here.
+The session is an HMAC of the email and an expiry, signed with `AUTH_SECRET`, in an HTTP-only cookie. Google supplies the email. It must be in `ALLOWED_EMAILS`.
 
-## What is intentionally absent
+## Left out on purpose
 
-- No test runner is configured. `npm run check` is `svelte-check`.
-- No SQL database. If it is not a file in the clone or a field in those two JSON files, the app does not store it.
-- No git binary. Anything git must do is a function in `src/lib/server/git.ts`, which is why a few ordinary git operations are missing on purpose. That is the subject of [Challenges](challenges.md).
+- No test runner. `npm run check` is `svelte-check`.
+- No SQL. State is a file in the clone or a field in those two JSON files.
+- No git binary. Git operations are functions in `src/lib/server/git.ts`, which is why a few ordinary ones are missing. See [Challenges](challenges.md).

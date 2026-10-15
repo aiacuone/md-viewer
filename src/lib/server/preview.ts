@@ -2,8 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { renderMarkdown } from '$lib/markdown';
 import { displayName } from '$lib/display';
-import { toolList } from '$lib/preview/stack';
-
 const ROOT = path.resolve('preview');
 
 export type PreviewNode =
@@ -79,14 +77,6 @@ function listDir(rel: string): PreviewNode {
 		});
 	const title = rel ? displayName(rel.split('/').pop() ?? rel) : 'Sample notes';
 	return { kind: 'dir', path: rel, title, entries };
-}
-
-export function previewTools(): string[] {
-	const pkg = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8')) as {
-		dependencies?: Record<string, string>;
-		devDependencies?: Record<string, string>;
-	};
-	return toolList(pkg);
 }
 
 export function loadPreview(urlPathName: string): PreviewNode | null {

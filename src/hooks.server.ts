@@ -4,6 +4,7 @@ import { readSession, SESSION_COOKIE } from '$lib/server/auth';
 const PUBLIC_FILE = /\.(css|js|map|svg|png|ico|webp|webmanifest|woff2?|txt|json)$/i;
 
 function isPublic(pathname: string): boolean {
+	if (pathname === '/welcome') return true;
 	if (pathname === '/preview' || pathname.startsWith('/preview/')) return true;
 	if (pathname === '/login' || pathname.startsWith('/login/')) return true;
 	if (pathname === '/auth/callback/google') return true;
@@ -24,5 +25,5 @@ export const handle: Handle = async ({ event, resolve }) => {
 		error(401, 'Sign in required');
 	}
 
-	redirect(303, '/preview');
+	redirect(303, '/welcome');
 };

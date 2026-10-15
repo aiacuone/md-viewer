@@ -17,5 +17,5 @@ A note written in markdown is still a text file. You can read it in this app, in
 MD Viewer is a small SvelteKit app for markdown that already lives in git. You browse a clone, edit in the browser, and commit back to the remote.
 
 - [What it is](app/overview.md)
-- Features: [browse and edit](app/features/browse-and-edit.md), [sync](app/features/sync.md), [convert and resolve](app/features/convert.md)
+- Features: [browse and edit](app/features/browse-and-edit.md), [sync](app/features/sync.md), [AI](app/features/AI.md)
 - Building it: [stack](app/build/stack.md), [challenges](app/build/challenges.md), [running it](app/build/running-it.md)

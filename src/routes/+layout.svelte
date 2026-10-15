@@ -9,7 +9,8 @@
 
 	const webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : '');
 	const path = $derived(page.url.pathname);
-	const homeHref = $derived(data.preview ? '/preview' : '/');
+	const publicView = $derived(data.preview || !data.user);
+	const homeHref = $derived(data.preview || !data.user ? '/welcome' : '/');
 	const reposActive = $derived(
 		data.preview ? !path.startsWith('/preview/') : path === '/' && page.url.searchParams.get('list') === '1'
 	);
@@ -29,14 +30,14 @@
 			<a
 				class="icon-btn"
 				class:active={reposActive}
-				href={data.preview ? '/preview' : '/?list=1'}
+				href={publicView ? '/preview' : '/?list=1'}
 				aria-label="Repos"
 				aria-current={reposActive ? 'page' : undefined}
 				title="Repos"
 			>
 				<Icon name="repos" />
 			</a>
-			{#if data.preview}
+			{#if publicView}
 				<button type="button" class="icon-btn" data-preview-disabled aria-label="Add" title="Add">
 					<Icon name="plus" />
 				</button>

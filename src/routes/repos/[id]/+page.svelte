@@ -3,9 +3,8 @@
 	import SyncBar from '$lib/components/SyncBar.svelte';
 	import CommitModal from '$lib/components/CommitModal.svelte';
 	import PasteNotesModal from '$lib/components/PasteNotesModal.svelte';
-	import BackLink from '$lib/components/BackLink.svelte';
+	import BrowseChrome from '$lib/components/BrowseChrome.svelte';
 	import FavouriteStar from '$lib/components/FavouriteStar.svelte';
-	import Icon from '$lib/components/Icon.svelte';
 	import { displayName, syncCaption, treeEntryLabel } from '$lib/display';
 	import { goBack } from '$lib/navigation';
 
@@ -97,44 +96,20 @@
 </script>
 
 <section class="stack repo-page">
-	<div class="header-row">
-		<div class="title-block">
-			<p class="breadcrumb">{crumbs.map((crumb) => crumb.label).join(' / ')}</p>
-			<div class="title-row">
-				<div class="desktop-only">
-					<BackLink fallback="/?list=1" />
-				</div>
-				<h1>{data.repo.name}</h1>
-			</div>
-			{#if data.repo.contentRoot}
-				<p class="muted">content root <code>{data.repo.contentRoot}</code></p>
-			{/if}
-		</div>
-		<div class="file-toolbar desktop-only">
-			<p class="sync-status">
-				<strong>{sync.branch}</strong>
-				<span>{sync.detail}</span>
-			</p>
-			<div class="tool-group">
-				<button type="button" class="icon-btn" aria-label="Convert" title="Convert" onclick={() => (pasteOpen = true)}>
-					<Icon name="convert" />
-				</button>
-				<button type="button" class="icon-btn" aria-label="Pull" title="Pull" onclick={() => runPull?.()}>
-					<Icon name="pull" />
-				</button>
-				<button type="button" class="icon-btn" aria-label="Push" title="Push" onclick={() => runPush?.()}>
-					<Icon name="push" />
-				</button>
-			</div>
-		</div>
-	</div>
-
-	<nav class="crumbs row desktop-only" aria-label="Breadcrumb">
-		{#each crumbs as c, i}
-			{#if i > 0}<span class="muted">/</span>{/if}
-			<button type="button" class="crumb" onclick={() => openCrumb(c)}>{c.label}</button>
-		{/each}
-	</nav>
+	<BrowseChrome
+		title={data.repo.name}
+		{crumbs}
+		backHref="/?list=1"
+		branch={sync.branch}
+		status={sync.detail}
+		contentRoot={data.repo.contentRoot}
+		onCrumb={(index) => openCrumb(crumbs[index])}
+		onBack={() => goBack('/?list=1')}
+		onConvert={() => (pasteOpen = true)}
+		onPull={() => runPull?.()}
+		onPush={() => runPush?.()}
+		onSync={() => (syncOpen = true)}
+	/>
 
 	{#if starError}
 		<p class="error">{starError}</p>
@@ -193,36 +168,6 @@
 	{/if}
 </section>
 
-<nav class="action-bar mobile-only" aria-label="Browse actions">
-	<button
-		type="button"
-		class="icon-btn"
-		onclick={() => goBack('/?list=1')}
-		aria-label="Back"
-		title="Back"
-	>
-		<Icon name="back" />
-	</button>
-	<div class="action-crumbs" aria-label="Breadcrumb">
-		{#each crumbs as c, i}
-			{#if i > 0}<span class="muted crumb-sep">/</span>{/if}
-			<button type="button" class="crumb" onclick={() => openCrumb(c)}>{c.label}</button>
-		{/each}
-	</div>
-	<button
-		type="button"
-		class="primary icon-btn"
-		aria-label="Convert"
-		title="Convert"
-		onclick={() => (pasteOpen = true)}
-	>
-		<Icon name="convert" />
-	</button>
-	<button type="button" class="icon-btn" aria-label="Sync" title="Sync" onclick={() => (syncOpen = true)}>
-		<Icon name="sync" />
-	</button>
-</nav>
-
 <SyncBar
 	repoId={data.repo.id}
 	status={data.status}
@@ -243,36 +188,7 @@
 />
 
 <style>
-	h1 {
-		margin: 0;
-		letter-spacing: -0.03em;
-		min-width: 0;
-	}
-
-	.title-row {
-		display: flex;
-		align-items: center;
-		gap: 0.35rem;
-		min-width: 0;
-	}
-
-	.header-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		gap: 1rem;
-		flex-wrap: wrap;
-	}
-
-	.crumb {
-		background: transparent;
-		border: 0;
-		padding: 0.2rem 0.35rem;
-		color: var(--accent);
-	}
-
-	.tree ul,
-	ul.tree {
+	.tree ul {
 		list-style: none;
 		margin: 0;
 		padding: 0;
@@ -320,55 +236,6 @@
 
 	.row-main.dir {
 		font-weight: 600;
-	}
-
-	code {
-		font-family: var(--font-mono);
-		font-size: 0.85em;
-	}
-
-	.action-bar {
-		position: fixed;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		z-index: 40;
-		display: flex;
-		align-items: center;
-		gap: 0.35rem;
-		padding: 0.55rem 0.65rem calc(0.55rem + env(safe-area-inset-bottom));
-		background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
-		border-top: 1px solid var(--border);
-		backdrop-filter: blur(10px);
-		box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
-	}
-
-	.action-crumbs {
-		display: flex;
-		align-items: center;
-		flex: 1 1 auto;
-		min-width: 0;
-		overflow-x: auto;
-		-webkit-overflow-scrolling: touch;
-		scrollbar-width: none;
-		gap: 0.05rem;
-		mask-image: linear-gradient(to right, #000 85%, transparent);
-	}
-
-	.action-crumbs::-webkit-scrollbar {
-		display: none;
-	}
-
-	.action-crumbs .crumb {
-		flex: 0 0 auto;
-		padding: 0.45rem 0.3rem;
-		font-size: 0.9rem;
-		white-space: nowrap;
-	}
-
-	.crumb-sep {
-		flex: 0 0 auto;
-		font-size: 0.85rem;
 	}
 
 	@media (max-width: 767px) {
