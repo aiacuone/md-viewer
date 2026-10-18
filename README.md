@@ -30,3 +30,7 @@ Configure commit author and PAT under **Settings**. Clones are stored in `data/r
 - `npm run dev` — development server
 - `npm run build` — production build (Node adapter)
 - `npm run preview` — preview production build
+
+## Analytics
+
+Visits to the public preview (`/preview/...`) are counted by the self-hosted GoatCounter on the portfolio VM, dashboard at https://stats.portfolio-aiacuone.duckdns.org. Paths are reported as `/md-viewer/preview/...` so they stay apart from the portfolio's own pages. The snippet is in `src/routes/preview/+layout.svelte`; the signed-in app is not tracked. GoatCounter sets no cookies and ignores `localhost`.

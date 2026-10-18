@@ -36,11 +36,17 @@
     show('This Google account is not on the allow list.');
   }
 })();<\/script>`;
+
+	// Preview pages are static (no client router), so count.js counts each page load itself.
+	// Counts go to the portfolio's GoatCounter, prefixed with /md-viewer to keep them apart from its pages.
+	const counter = `<script>window.goatcounter = { path: function(){ return '/md-viewer' + location.pathname; } };<\/script>
+<script data-goatcounter="https://stats.portfolio-aiacuone.duckdns.org/count" async src="https://stats.portfolio-aiacuone.duckdns.org/count.js"><\/script>`;
 </script>
 
 <div id="preview-toast" class="toast card" hidden>Disabled in the preview.</div>
 {@render children()}
 {@html boot}
+{@html counter}
 
 <style>
 	.toast {
