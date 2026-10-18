@@ -9,8 +9,7 @@ SvelteKit PWA for browsing and editing markdown files in git repositories.
 - Edit with CodeMirror, preview with marked
 - Save → Commit + push (with diffs); Pull / Push separately
 - AI sync resolve when histories diverge (DeepSeek)
-- Convert (notes → AI markdown into a folder/file)
-+ Convert (paste notes → AI markdown into a folder/file)
+- Convert (paste notes → AI markdown into a folder/file)
 - One personal access token and DeepSeek API key under **Settings**
 
 ## Setup
@@ -22,7 +21,7 @@ npm run dev
 
 Open http://localhost:5173
 
-**Live:** http://161.33.95.248:3000 (Oracle Cloud VM — see [docs/deploy.md](docs/deploy.md))
+**Live:** https://md-viewer-aiacuone.duckdns.org (Oracle Cloud VM behind nginx — see [docs/deploy.md](docs/deploy.md)). Signed-out visitors see the public preview at `/preview`; the app itself needs Google sign-in with an allow-listed email.
 
 Configure commit author and PAT under **Settings**. Clones are stored in `data/repos/` (gitignored).
 

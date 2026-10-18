@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile, writeFile, rm, access } from 'node:fs/promises';
 import type { RepoMeta, RepoPublic } from '$lib/types';
 import { META_PATH, ensureDataDirs, repoDir } from './paths';
+import { clearFavouritesForRepo, getSettings, saveSettings } from './settings';
 
 async function readAll(): Promise<RepoMeta[]> {
 	await ensureDataDirs();
@@ -87,6 +88,10 @@ export async function updateRepo(id: string, patch: Partial<RepoMeta>): Promise<
 	return repos[idx];
 }
 
+export async function markSynced(id: string): Promise<RepoMeta> {
+	return updateRepo(id, { lastSyncedAt: new Date().toISOString() });
+}
+
 export async function removeRepo(id: string): Promise<void> {
 	const repos = await readAll();
 	const next = repos.filter((r) => r.id !== id);
@@ -94,7 +99,6 @@ export async function removeRepo(id: string): Promise<void> {
 	await writeAll(next);
 	await rm(repoDir(id), { recursive: true, force: true });
 
-	const { getSettings, saveSettings, clearFavouritesForRepo } = await import('./settings');
 	await clearFavouritesForRepo(id);
 	const settings = await getSettings();
 	if (settings.defaultRepoId === id) {

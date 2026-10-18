@@ -18,8 +18,11 @@ export function displayName(name: string): string {
 	return name.replace(/\.(md|markdown)$/i, '');
 }
 
+/** UI path prefix for markdown files outside the configured content root (e.g. repo README). */
+export const ROOT_SCOPE = '@root';
+
 export function isRootScopedPath(path: string): boolean {
-	return path === '@root' || path.startsWith('@root/');
+	return path === ROOT_SCOPE || path.startsWith(`${ROOT_SCOPE}/`);
 }
 
 export function treeEntryLabel(entry: { name: string; path: string; type: 'file' | 'dir' }): string {

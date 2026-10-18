@@ -1,7 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getRepoOrThrow } from '$lib/server/repos';
-import { AiError, chatJson } from '$lib/server/ai';
+import { chatJson } from '$lib/server/ai';
+import { failFrom } from '$lib/server/http';
 
 function slugify(input: string): string {
 	const base = input
@@ -117,12 +118,6 @@ Rules:
 			title: result.title ?? titleHint ?? null
 		});
 	} catch (err) {
-		if (err && typeof err === 'object' && 'status' in err) throw err;
-		if (err instanceof AiError) {
-			return json({ message: err.message, needsAiKey: true }, { status: 400 });
-		}
-		const message = err instanceof Error ? err.message : 'AI markdown conversion failed';
-		if (message === 'Repository not found') error(404, message);
-		error(400, message);
+		return failFrom(err, 'AI markdown conversion failed');
 	}
 };

@@ -1,6 +1,6 @@
 import { json, error, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getRepoOrThrow, updateRepo } from '$lib/server/repos';
+import { getRepoOrThrow, markSynced } from '$lib/server/repos';
 import {
 	readMarkdownFile,
 	readMarkdownFileAtHead,
@@ -8,6 +8,7 @@ import {
 	deleteMarkdownFileAndSync
 } from '$lib/server/git';
 import { removeFavouritePath } from '$lib/server/settings';
+import { failFrom } from '$lib/server/http';
 
 export const GET: RequestHandler = async ({ params, url }) => {
 	try {
@@ -23,9 +24,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		const content = await readMarkdownFile(repo, pathParam);
 		return json({ path: pathParam, content });
 	} catch (err) {
-		const message = err instanceof Error ? err.message : 'Failed to read file';
-		if (message === 'Repository not found') error(404, message);
-		error(400, message);
+		return failFrom(err, 'Failed to read file');
 	}
 };
 
@@ -39,9 +38,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 		await writeMarkdownFile(repo, path, content);
 		return json({ ok: true, path });
 	} catch (err) {
-		const message = err instanceof Error ? err.message : 'Failed to save file';
-		if (message === 'Repository not found') error(404, message);
-		error(400, message);
+		return failFrom(err, 'Failed to save file');
 	}
 };
 
@@ -56,14 +53,14 @@ export const DELETE: RequestHandler = async ({ params, url }) => {
 		sha = result.sha;
 		await removeFavouritePath(repo.id, pathParam);
 		if (result.committed) {
-			await updateRepo(repo.id, { lastSyncedAt: new Date().toISOString() });
+			await markSynced(repo.id);
 		}
 		return json({ ok: true, path: pathParam, committed: result.committed, sha });
 	} catch (err) {
-		if (isHttpError(err)) throw err;
-		const message = err instanceof Error ? err.message : 'Failed to delete file';
-		if (message === 'Repository not found' || message === 'File not found') error(404, message);
-		if (sha) error(400, `Deleted and committed (${sha.slice(0, 7)}) but push failed: ${message}`);
-		error(400, message);
+		if (sha && !isHttpError(err)) {
+			const message = err instanceof Error ? err.message : 'Push failed';
+			error(400, `Deleted and committed (${sha.slice(0, 7)}) but push failed: ${message}`);
+		}
+		return failFrom(err, 'Failed to delete file');
 	}
 };

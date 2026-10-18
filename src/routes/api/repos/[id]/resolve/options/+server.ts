@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { getRepoOrThrow } from '$lib/server/repos';
 import { getDivergeContext, getSyncStatus } from '$lib/server/git';
 import { AiError, chatJson } from '$lib/server/ai';
+import { failFrom } from '$lib/server/http';
 import type { ResolveOption, ResolveStrategy } from '$lib/types';
 
 const STRATEGIES: ResolveStrategy[] = ['keep_local', 'keep_remote', 'ai_merge'];
@@ -101,9 +102,6 @@ Titles must be plain and mobile-friendly. Do not invent file contents.`
 			options
 		});
 	} catch (err) {
-		if (err && typeof err === 'object' && 'status' in err) throw err;
-		const message = err instanceof Error ? err.message : 'Failed to get resolve options';
-		if (message === 'Repository not found') error(404, message);
-		error(400, message);
+		return failFrom(err, 'Failed to get resolve options');
 	}
 };

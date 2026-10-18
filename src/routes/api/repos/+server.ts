@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { addRepoMeta, listRepos, rollbackAdd, toPublic, updateRepo } from '$lib/server/repos';
+import { getSettings, saveSettings } from '$lib/server/settings';
 import { cloneRepo } from '$lib/server/git';
 
 export const GET: RequestHandler = async () => {
@@ -33,7 +34,6 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const repos = await listRepos();
 		if (repos.length === 1) {
-			const { getSettings, saveSettings } = await import('$lib/server/settings');
 			const settings = await getSettings();
 			await saveSettings({ ...settings, defaultRepoId: updated.id });
 		}

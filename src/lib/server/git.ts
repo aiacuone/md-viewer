@@ -1,10 +1,9 @@
-import { readdir, readFile, writeFile, mkdir, stat, unlink } from 'node:fs/promises';
+import { readdir, readFile, writeFile, mkdir, rm, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import git from 'isomorphic-git';
 import http from 'isomorphic-git/http/node';
 import fs from 'node:fs';
-import type { DiffFile, SyncStatus, TreeEntry } from '$lib/types';
-import type { RepoMeta } from '$lib/types';
+import type { DiffFile, RepoMeta, SyncStatus, TreeEntry } from '$lib/types';
 import { getGitToken, getSettings } from './settings';
 import {
 	repoDir,
@@ -18,6 +17,31 @@ import { pathExists } from './repos';
 import { isMatrixChanged, unifiedDiff } from '$lib/diff';
 
 export const DIVERGED_CODE = 'HISTORIES_DIVERGED';
+
+const AUTH_FAILED = 'Authentication failed. Check the token under Settings.';
+const MARKDOWN_FILE = /\.(md|markdown)$/i;
+
+/** Thrown when local and remote both have commits the other lacks. */
+export class DivergedError extends Error {
+	readonly code = DIVERGED_CODE;
+	constructor() {
+		super('Histories have diverged. Choose an AI resolve option, or resolve on another machine.');
+	}
+}
+
+function assertMarkdown(relativePath: string, action: string): void {
+	if (!MARKDOWN_FILE.test(relativePath)) {
+		throw new Error(`Only markdown files can be ${action}`);
+	}
+}
+
+async function currentBranch(meta: RepoMeta, dir: string): Promise<string> {
+	return (await git.currentBranch({ fs, dir, fullname: false })) || meta.defaultBranch;
+}
+
+function cleanStatus(branch: string): SyncStatus {
+	return { clean: true, uncommitted: [], ahead: 0, behind: 0, branch };
+}
 
 /** GitHub: x-access-token + PAT; also works for many GitLab/Gitea HTTPS setups */
 function onAuth(token?: string) {
@@ -63,7 +87,7 @@ export async function cloneRepo(meta: RepoMeta): Promise<void> {
 	} catch (err) {
 		// Retry without explicit ref if branch name wrong
 		if (ref) {
-			await rmSafe(dir);
+			await rm(dir, { recursive: true, force: true });
 			await mkdir(dir, { recursive: true });
 			await git.clone({
 				fs,
@@ -124,7 +148,7 @@ export async function listTree(meta: RepoMeta, relativePath = ''): Promise<TreeE
 		const childRel = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 		if (entry.isDirectory()) {
 			result.push({ name: entry.name, path: childRel, type: 'dir' });
-		} else if (entry.isFile() && /\.(md|markdown)$/i.test(entry.name)) {
+		} else if (entry.isFile() && MARKDOWN_FILE.test(entry.name)) {
 			result.push({ name: entry.name, path: childRel, type: 'file' });
 		}
 	}
@@ -143,30 +167,24 @@ export async function listTree(meta: RepoMeta, relativePath = ''): Promise<TreeE
 }
 
 export async function readMarkdownFile(meta: RepoMeta, relativePath: string): Promise<string> {
-	if (!/\.(md|markdown)$/i.test(relativePath)) {
-		throw new Error('Only markdown files can be opened');
-	}
+	assertMarkdown(relativePath, 'opened');
 	const { absolute } = resolveMarkdownPath(repoDir(meta.id), meta.contentRoot, relativePath);
-	return readFile(absolute, 'utf8');
+	try {
+		return await readFile(absolute, 'utf8');
+	} catch (err) {
+		if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') throw new Error('File not found');
+		throw err;
+	}
 }
 
 export async function readMarkdownFileAtHead(
 	meta: RepoMeta,
 	relativePath: string
 ): Promise<string | null> {
-	if (!/\.(md|markdown)$/i.test(relativePath)) {
-		throw new Error('Only markdown files can be opened');
-	}
+	assertMarkdown(relativePath, 'opened');
 	const dir = repoDir(meta.id);
 	const { repoRelative } = resolveMarkdownPath(dir, meta.contentRoot, relativePath);
-
-	try {
-		const commit = await git.resolveRef({ fs, dir, ref: 'HEAD' });
-		const { blob } = await git.readBlob({ fs, dir, oid: commit, filepath: repoRelative });
-		return Buffer.from(blob).toString('utf8');
-	} catch {
-		return null;
-	}
+	return readBlobAtRef(dir, 'HEAD', repoRelative);
 }
 
 export async function writeMarkdownFile(
@@ -174,9 +192,7 @@ export async function writeMarkdownFile(
 	relativePath: string,
 	content: string
 ): Promise<void> {
-	if (!/\.(md|markdown)$/i.test(relativePath)) {
-		throw new Error('Only markdown files can be saved');
-	}
+	assertMarkdown(relativePath, 'saved');
 	const { absolute } = resolveMarkdownPath(repoDir(meta.id), meta.contentRoot, relativePath);
 	await mkdir(path.dirname(absolute), { recursive: true });
 	await writeFile(absolute, content, 'utf8');
@@ -185,9 +201,7 @@ export async function writeMarkdownFile(
 
 /** Delete a markdown file from disk and stage the removal in git when tracked. */
 export async function deleteMarkdownFile(meta: RepoMeta, relativePath: string): Promise<void> {
-	if (!/\.(md|markdown)$/i.test(relativePath)) {
-		throw new Error('Only markdown files can be deleted');
-	}
+	assertMarkdown(relativePath, 'deleted');
 	const dir = repoDir(meta.id);
 	const { absolute, repoRelative } = resolveMarkdownPath(dir, meta.contentRoot, relativePath);
 
@@ -233,10 +247,6 @@ export async function deleteMarkdownFileAndSync(
 	return { committed: true, sha };
 }
 
-async function matrixStatus(dir: string) {
-	return git.statusMatrix({ fs, dir });
-}
-
 function filterToContentRoot(meta: RepoMeta, repoRelativePath: string): boolean {
 	if (!meta.contentRoot) return true;
 	const root = meta.contentRoot.replace(/\\/g, '/');
@@ -244,6 +254,63 @@ function filterToContentRoot(meta: RepoMeta, repoRelativePath: string): boolean 
 	return (
 		README_PATTERN.test(repoRelativePath.split('/').pop() ?? '') && !repoRelativePath.includes('/')
 	);
+}
+
+/** Uncommitted [filepath, head, workdir] rows inside the content root. */
+async function changedFiles(meta: RepoMeta, dir: string): Promise<Array<[string, number, number]>> {
+	const matrix = await git.statusMatrix({ fs, dir });
+	return matrix
+		.filter(
+			([filepath, head, workdir, stage]) =>
+				filterToContentRoot(meta, filepath) && isMatrixChanged(head, workdir, stage)
+		)
+		.map(([filepath, head, workdir]) => [filepath, head, workdir]);
+}
+
+/** Commits on each side that the other side lacks. */
+async function uniqueCommits(dir: string, localRef: string, remoteRef: string) {
+	const localLog = await git.log({ fs, dir, ref: localRef });
+	const remoteLog = await git.log({ fs, dir, ref: remoteRef });
+	const localOids = new Set(localLog.map((c) => c.oid));
+	const remoteOids = new Set(remoteLog.map((c) => c.oid));
+	return {
+		localOnly: localLog.filter((c) => !remoteOids.has(c.oid)),
+		remoteOnly: remoteLog.filter((c) => !localOids.has(c.oid))
+	};
+}
+
+/** Content-root files whose contents differ between the local branch and its remote. */
+async function divergedFiles(meta: RepoMeta, dir: string, branch: string): Promise<ConflictFile[]> {
+	const remote = `origin/${branch}`;
+	const candidatePaths = new Set<string>();
+	try {
+		await git.walk({
+			fs,
+			dir,
+			trees: [git.TREE({ ref: branch }), git.TREE({ ref: remote })],
+			map: async (filepath, [a, b]) => {
+				if (!filepath || filepath === '.') return;
+				const aType = a ? await a.type() : null;
+				const bType = b ? await b.type() : null;
+				if (aType === 'tree' || bType === 'tree') return;
+				const aOid = a ? await a.oid() : null;
+				const bOid = b ? await b.oid() : null;
+				if (aOid !== bOid) candidatePaths.add(filepath);
+			}
+		});
+	} catch {
+		// fall through with empty candidates
+	}
+
+	const files: ConflictFile[] = [];
+	for (const filepath of candidatePaths) {
+		if (!filterToContentRoot(meta, filepath)) continue;
+		const local = await readBlobAtRef(dir, branch, filepath);
+		const remoteContent = await readBlobAtRef(dir, remote, filepath);
+		if (local === remoteContent) continue;
+		files.push({ path: filepath, local, remote: remoteContent });
+	}
+	return files;
 }
 
 /** Reuse one remote check across folder and file navigations. */
@@ -286,12 +353,9 @@ async function countAheadBehind(
 		const localOid = await git.resolveRef({ fs, dir, ref: branch });
 		if (remoteOid && localOid !== remoteOid) {
 			try {
-				const localLog = await git.log({ fs, dir, ref: branch });
-				const remoteLog = await git.log({ fs, dir, ref: `origin/${branch}` });
-				const localOids = new Set(localLog.map((c) => c.oid));
-				const remoteOids = new Set(remoteLog.map((c) => c.oid));
-				ahead = localLog.filter((c) => !remoteOids.has(c.oid)).length;
-				behind = remoteLog.filter((c) => !localOids.has(c.oid)).length;
+				const { localOnly, remoteOnly } = await uniqueCommits(dir, branch, `origin/${branch}`);
+				ahead = localOnly.length;
+				behind = remoteOnly.length;
 			} catch (err) {
 				// Incomplete fetch / missing objects — force a re-fetch next pull rather than crashing Sync
 				const msg = err instanceof Error ? err.message : String(err);
@@ -330,14 +394,10 @@ async function fastForwardLocal(dir: string, branch: string): Promise<void> {
 function asDiverged(err: unknown): Error {
 	const msg = err instanceof Error ? err.message : String(err);
 	if (/diverged|conflict|merge|fast.?forward|not.*ancestor/i.test(msg)) {
-		const diverge = new Error(
-			'Histories have diverged. Choose an AI resolve option, or resolve on another machine.'
-		);
-		(diverge as Error & { code?: string }).code = DIVERGED_CODE;
-		return diverge;
+		return new DivergedError();
 	}
 	if (authError(err)) {
-		return new Error('Authentication failed. Check the token under Settings.');
+		return new Error(AUTH_FAILED);
 	}
 	return err instanceof Error ? err : new Error(msg);
 }
@@ -355,15 +415,8 @@ async function statusAfterFetch(meta: RepoMeta, pre: SyncStatus): Promise<SyncSt
 
 export async function getSyncStatus(meta: RepoMeta): Promise<SyncStatus> {
 	const dir = repoDir(meta.id);
-	const branch = (await git.currentBranch({ fs, dir, fullname: false })) || meta.defaultBranch;
-	const matrix = await matrixStatus(dir);
-	const uncommitted: string[] = [];
-
-	for (const [filepath, head, workdir, stage] of matrix) {
-		if (!filterToContentRoot(meta, filepath)) continue;
-		if (!isMatrixChanged(head, workdir, stage)) continue;
-		uncommitted.push(filepath);
-	}
+	const branch = await currentBranch(meta, dir);
+	const uncommitted = (await changedFiles(meta, dir)).map(([filepath]) => filepath);
 
 	const remoteOid = await readRemoteOid(dir, branch);
 	const { ahead, behind } = await countAheadBehind(dir, branch, remoteOid);
@@ -379,36 +432,30 @@ export async function getSyncStatus(meta: RepoMeta): Promise<SyncStatus> {
 
 export async function getDiffs(meta: RepoMeta, onlyPath?: string): Promise<DiffFile[]> {
 	const dir = repoDir(meta.id);
-	const matrix = await matrixStatus(dir);
+	const only = onlyPath
+		? {
+				repoRelative: resolveMarkdownPath(dir, meta.contentRoot, onlyPath).repoRelative,
+				normalized: onlyPath.replace(/\\/g, '/')
+			}
+		: null;
 	const diffs: DiffFile[] = [];
 
-	for (const [filepath, head, workdir, stage] of matrix) {
-		if (!filterToContentRoot(meta, filepath)) continue;
-		if (!isMatrixChanged(head, workdir, stage)) continue;
-
-		if (onlyPath) {
-			const { repoRelative: repoOnly } = resolveMarkdownPath(dir, meta.contentRoot, onlyPath);
-			const normalized = onlyPath.replace(/\\/g, '/');
-			if (filepath !== repoOnly && filepath !== normalized && !filepath.endsWith(`/${normalized}`)) {
-				continue;
-			}
+	for (const [filepath, head, workdir] of await changedFiles(meta, dir)) {
+		if (
+			only &&
+			filepath !== only.repoRelative &&
+			filepath !== only.normalized &&
+			!filepath.endsWith(`/${only.normalized}`)
+		) {
+			continue;
 		}
 
 		let status: DiffFile['status'] = 'modified';
 		if (head === 0) status = 'added';
 		if (workdir === 0) status = 'deleted';
 
-		let before = '';
+		const before = head !== 0 ? ((await readBlobAtRef(dir, 'HEAD', filepath)) ?? '') : '';
 		let after = '';
-		try {
-			if (head !== 0) {
-				const commit = await git.resolveRef({ fs, dir, ref: 'HEAD' });
-				const { blob } = await git.readBlob({ fs, dir, oid: commit, filepath });
-				before = Buffer.from(blob).toString('utf8');
-			}
-		} catch {
-			before = '';
-		}
 		try {
 			if (workdir !== 0) {
 				after = await readFile(path.join(dir, filepath), 'utf8');
@@ -430,22 +477,16 @@ export async function getDiffs(meta: RepoMeta, onlyPath?: string): Promise<DiffF
 export async function commitAll(meta: RepoMeta, message: string): Promise<string> {
 	const dir = repoDir(meta.id);
 	const settings = await getSettings();
-	const matrix = await matrixStatus(dir);
-	let staged = 0;
+	const changed = await changedFiles(meta, dir);
+	if (changed.length === 0) throw new Error('Nothing to commit');
 
-	for (const [filepath, head, workdir, stage] of matrix) {
-		if (!filterToContentRoot(meta, filepath)) continue;
-		if (!isMatrixChanged(head, workdir, stage)) continue;
-
+	for (const [filepath, , workdir] of changed) {
 		if (workdir === 0) {
 			await git.remove({ fs, dir, filepath });
 		} else {
 			await git.add({ fs, dir, filepath });
 		}
-		staged++;
 	}
-
-	if (staged === 0) throw new Error('Nothing to commit');
 
 	const sha = await git.commit({
 		fs,
@@ -463,8 +504,7 @@ export async function commitAll(meta: RepoMeta, message: string): Promise<string
 export async function fetchRemote(meta: RepoMeta): Promise<void> {
 	const dir = repoDir(meta.id);
 	const token = await getGitToken();
-	const branch =
-		(await git.currentBranch({ fs, dir, fullname: false })) || meta.defaultBranch;
+	const branch = await currentBranch(meta, dir);
 	try {
 		await git.fetch({
 			fs,
@@ -479,7 +519,7 @@ export async function fetchRemote(meta: RepoMeta): Promise<void> {
 		});
 	} catch (err) {
 		if (authError(err)) {
-			throw new Error('Authentication failed. Check the token under Settings.');
+			throw new Error(AUTH_FAILED);
 		}
 		throw err;
 	}
@@ -500,68 +540,29 @@ export async function getDivergeContext(meta: RepoMeta): Promise<DivergeContext>
 	const dir = repoDir(meta.id);
 	const status = await getSyncStatus(meta);
 	const branch = status.branch;
-	const remote = `origin/${branch}`;
 
-	const localLog = await git.log({ fs, dir, ref: branch });
-	const remoteLog = await git.log({ fs, dir, ref: remote });
-	const localOids = new Set(localLog.map((c) => c.oid));
-	const remoteOids = new Set(remoteLog.map((c) => c.oid));
+	const { localOnly, remoteOnly } = await uniqueCommits(dir, branch, `origin/${branch}`);
+	const summarize = (commits: typeof localOnly) =>
+		commits.slice(0, 12).map((c) => ({
+			oid: c.oid.slice(0, 7),
+			message: (c.commit.message || '').split('\n')[0].slice(0, 120)
+		}));
 
-	const localOnly = localLog.filter((c) => !remoteOids.has(c.oid));
-	const remoteOnly = remoteLog.filter((c) => !localOids.has(c.oid));
-
-	const localCommits = localOnly.slice(0, 12).map((c) => ({
-		oid: c.oid.slice(0, 7),
-		message: (c.commit.message || '').split('\n')[0].slice(0, 120)
-	}));
-	const remoteCommits = remoteOnly.slice(0, 12).map((c) => ({
-		oid: c.oid.slice(0, 7),
-		message: (c.commit.message || '').split('\n')[0].slice(0, 120)
-	}));
-
-	const candidatePaths = new Set<string>();
-	try {
-		await git.walk({
-			fs,
-			dir,
-			trees: [git.TREE({ ref: branch }), git.TREE({ ref: remote })],
-			map: async (filepath, [a, b]) => {
-				if (!filepath || filepath === '.') return;
-				const aType = a ? await a.type() : null;
-				const bType = b ? await b.type() : null;
-				if (aType === 'tree' || bType === 'tree') return;
-				const aOid = a ? await a.oid() : null;
-				const bOid = b ? await b.oid() : null;
-				if (aOid !== bOid) candidatePaths.add(filepath);
-			}
-		});
-	} catch {
-		// fall through with empty candidates
-	}
-
-	const fileDiffs: DivergeContext['fileDiffs'] = [];
 	const MAX_FILES = 8;
 	const MAX_CHARS = 4000;
-	for (const filepath of [...candidatePaths].slice(0, MAX_FILES)) {
-		if (!filterToContentRoot(meta, filepath)) continue;
-		const local = await readBlobAtRef(dir, branch, filepath);
-		const remoteContent = await readBlobAtRef(dir, remote, filepath);
-		if (local === remoteContent) continue;
-		const diff = unifiedDiff(filepath, remoteContent ?? '', local ?? '').slice(0, MAX_CHARS);
-		fileDiffs.push({
-			path: filepath,
-			local: local?.slice(0, MAX_CHARS) ?? null,
-			remote: remoteContent?.slice(0, MAX_CHARS) ?? null,
-			diff
-		});
-	}
+	const fileDiffs = (await divergedFiles(meta, dir, branch)).slice(0, MAX_FILES).map((f) => ({
+		path: f.path,
+		local: f.local?.slice(0, MAX_CHARS) ?? null,
+		remote: f.remote?.slice(0, MAX_CHARS) ?? null,
+		diff: unifiedDiff(f.path, f.remote ?? '', f.local ?? '').slice(0, MAX_CHARS)
+	}));
 
 	return {
 		branch,
 		ahead: status.ahead,
 		behind: status.behind,
-		localCommits,
-		remoteCommits,
+		localCommits: summarize(localOnly),
+		remoteCommits: summarize(remoteOnly),
 		fileDiffs
 	};
 }
@@ -583,11 +584,7 @@ export async function pullRepo(meta: RepoMeta): Promise<void> {
 	}
 
 	if (status.ahead > 0 && status.behind > 0) {
-		const err = new Error(
-			'Histories have diverged. Choose an AI resolve option, or resolve on another machine.'
-		);
-		(err as Error & { code?: string }).code = DIVERGED_CODE;
-		throw err;
+		throw new DivergedError();
 	}
 
 	if (status.ahead > 0 && status.behind === 0) {
@@ -599,13 +596,7 @@ export async function pullRepo(meta: RepoMeta): Promise<void> {
 	} catch (err) {
 		throw asDiverged(err);
 	}
-	rememberSync(meta.id, {
-		clean: true,
-		uncommitted: [],
-		ahead: 0,
-		behind: 0,
-		branch
-	});
+	rememberSync(meta.id, cleanStatus(branch));
 }
 
 /**
@@ -661,7 +652,7 @@ async function runAutoPull(meta: RepoMeta): Promise<AutoPullResult & { cacheable
 	try {
 		await fastForwardLocal(repoDir(meta.id), status.branch);
 		return {
-			status: { clean: true, uncommitted: [], ahead: 0, behind: 0, branch: status.branch },
+			status: cleanStatus(status.branch),
 			pulled: true,
 			cacheable: true
 		};
@@ -676,8 +667,7 @@ export async function pushRepo(meta: RepoMeta, opts?: { force?: boolean }): Prom
 		throw new Error('A personal access token is required to push. Add one under Settings.');
 	}
 	const dir = repoDir(meta.id);
-	const branch =
-		(await git.currentBranch({ fs, dir, fullname: false })) || meta.defaultBranch;
+	const branch = await currentBranch(meta, dir);
 
 	try {
 		await git.push({
@@ -696,7 +686,7 @@ export async function pushRepo(meta: RepoMeta, opts?: { force?: boolean }): Prom
 			throw new Error('Push rejected (non-fast-forward). Pull first, then try again.');
 		}
 		if (authError(err)) {
-			throw new Error('Authentication failed. Check the token under Settings.');
+			throw new Error(AUTH_FAILED);
 		}
 		throw err;
 	}
@@ -722,13 +712,7 @@ export async function resetToRemote(meta: RepoMeta): Promise<void> {
 		force: true
 	});
 	await git.checkout({ fs, dir, ref: branch, force: true });
-	rememberSync(meta.id, {
-		clean: true,
-		uncommitted: [],
-		ahead: 0,
-		behind: 0,
-		branch
-	});
+	rememberSync(meta.id, cleanStatus(branch));
 }
 
 export type ConflictFile = { path: string; local: string | null; remote: string | null };
@@ -740,40 +724,8 @@ export type ConflictFile = { path: string; local: string | null; remote: string 
 export async function listMergeConflicts(meta: RepoMeta): Promise<ConflictFile[]> {
 	await fetchRemote(meta);
 	invalidateSyncCache(meta.id);
-	const dir = repoDir(meta.id);
 	const status = await getSyncStatus(meta);
-	const branch = status.branch;
-	const remote = `origin/${branch}`;
-
-	const candidatePaths = new Set<string>();
-	try {
-		await git.walk({
-			fs,
-			dir,
-			trees: [git.TREE({ ref: branch }), git.TREE({ ref: remote })],
-			map: async (filepath, [a, b]) => {
-				if (!filepath || filepath === '.') return;
-				const aType = a ? await a.type() : null;
-				const bType = b ? await b.type() : null;
-				if (aType === 'tree' || bType === 'tree') return;
-				const aOid = a ? await a.oid() : null;
-				const bOid = b ? await b.oid() : null;
-				if (aOid !== bOid) candidatePaths.add(filepath);
-			}
-		});
-	} catch {
-		// empty
-	}
-
-	const conflicts: ConflictFile[] = [];
-	for (const filepath of candidatePaths) {
-		if (!filterToContentRoot(meta, filepath)) continue;
-		const local = await readBlobAtRef(dir, branch, filepath);
-		const remoteContent = await readBlobAtRef(dir, remote, filepath);
-		if (local === remoteContent) continue;
-		conflicts.push({ path: filepath, local, remote: remoteContent });
-	}
-	return conflicts;
+	return divergedFiles(meta, repoDir(meta.id), status.branch);
 }
 
 /**
@@ -827,9 +779,4 @@ export async function applyAiMergeAndCommit(
 		parent: [localOid, remoteOid]
 	});
 	invalidateSyncCache(meta.id);
-}
-
-async function rmSafe(dir: string): Promise<void> {
-	const { rm } = await import('node:fs/promises');
-	await rm(dir, { recursive: true, force: true });
 }

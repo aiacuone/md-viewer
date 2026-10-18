@@ -1,17 +1,16 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getRepoOrThrow, updateRepo } from '$lib/server/repos';
+import { getRepoOrThrow, markSynced } from '$lib/server/repos';
 import { pushRepo } from '$lib/server/git';
+import { failFrom } from '$lib/server/http';
 
 export const POST: RequestHandler = async ({ params }) => {
 	try {
 		const repo = await getRepoOrThrow(params.id);
 		await pushRepo(repo);
-		await updateRepo(repo.id, { lastSyncedAt: new Date().toISOString() });
+		await markSynced(repo.id);
 		return json({ ok: true });
 	} catch (err) {
-		const message = err instanceof Error ? err.message : 'Push failed';
-		if (message === 'Repository not found') error(404, message);
-		error(400, message);
+		return failFrom(err, 'Push failed');
 	}
 };

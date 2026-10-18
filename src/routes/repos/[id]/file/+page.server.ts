@@ -17,7 +17,10 @@ export const load: PageServerLoad = async ({ params, url }) => {
 
 	// Re-read after possible pull so content matches remote
 	const [content, favourites] = await Promise.all([
-		readMarkdownFile(repo, path),
+		readMarkdownFile(repo, path).catch((err) => {
+			if (err instanceof Error && err.message === 'File not found') error(404, err.message);
+			throw err;
+		}),
 		getFavouritesForRepo(repo.id)
 	]);
 	return {

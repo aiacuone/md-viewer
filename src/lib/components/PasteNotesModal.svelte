@@ -324,12 +324,11 @@
 				{#if busy === 'tree'}
 					<p class="muted">Loading…</p>
 				{:else}
-					<div class="folder-grid" role="list">
+					<div class="folder-grid">
 						{#each childDirs as dir}
 							<button
 								type="button"
 								class="grid-tile"
-								role="listitem"
 								disabled={busy !== null}
 								onclick={() => openFolder(dir.path)}
 							>
@@ -382,13 +381,12 @@
 					{#if mdFiles.length === 0}
 						<p class="muted hint">No markdown files here — go up or pick another folder.</p>
 					{:else}
-						<div class="folder-grid" role="list">
+						<div class="folder-grid">
 							{#each mdFiles as file}
 								<button
 									type="button"
 									class="grid-tile file-tile"
 									class:selected={appendPath === file.path}
-									role="listitem"
 									disabled={busy !== null}
 									onclick={() => (appendPath = file.path)}
 								>
@@ -654,12 +652,6 @@
 		width: auto;
 	}
 
-	.path {
-		margin: 0;
-		font-family: var(--font-mono);
-		font-size: 0.85rem;
-		word-break: break-all;
-	}
 
 	.dest-banner {
 		display: grid;

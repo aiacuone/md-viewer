@@ -9,6 +9,11 @@ const DEFAULTS: AppSettings = {
 	favouritesByRepo: {}
 };
 
+/** Favourites are stored without leading/trailing slashes and with forward slashes. */
+export function normalizeFavouritePath(path: string): string {
+	return path.trim().replace(/^\/+|\/+$/g, '').replace(/\\/g, '/');
+}
+
 function normalizeFavourites(raw: unknown): Record<string, string[]> {
 	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
 	const out: Record<string, string[]> = {};
@@ -18,7 +23,7 @@ function normalizeFavourites(raw: unknown): Record<string, string[]> {
 			...new Set(
 				paths
 					.filter((p): p is string => typeof p === 'string')
-					.map((p) => p.trim().replace(/^\/+|\/+$/g, '').replace(/\\/g, '/'))
+					.map(normalizeFavouritePath)
 					.filter(Boolean)
 			)
 		];
@@ -133,44 +138,46 @@ export async function getFavouritesForRepo(repoId: string): Promise<string[]> {
 	return settings.favouritesByRepo[repoId] ?? [];
 }
 
+/** Replace one repo's favourites; an empty list removes the repo's entry. */
+async function saveRepoFavourites(settings: AppSettings, repoId: string, next: string[]): Promise<void> {
+	const favouritesByRepo = { ...settings.favouritesByRepo };
+	if (next.length === 0) delete favouritesByRepo[repoId];
+	else favouritesByRepo[repoId] = next;
+	await saveSettings({ ...settings, favouritesByRepo });
+}
+
 /** Toggle a path in the repo's favourites list. Returns the updated list. */
 export async function toggleFavourite(repoId: string, path: string): Promise<string[]> {
-	const normalized = path.trim().replace(/^\/+|\/+$/g, '').replace(/\\/g, '/');
+	const normalized = normalizeFavouritePath(path);
 	if (!normalized) throw new Error('path is required');
 
 	const settings = await getSettings();
 	const current = settings.favouritesByRepo[repoId] ?? [];
-	const exists = current.includes(normalized);
-	const next = exists ? current.filter((p) => p !== normalized) : [...current, normalized];
-
-	const favouritesByRepo = { ...settings.favouritesByRepo };
-	if (next.length === 0) delete favouritesByRepo[repoId];
-	else favouritesByRepo[repoId] = next;
-
-	await saveSettings({ ...settings, favouritesByRepo });
+	const next = current.includes(normalized)
+		? current.filter((p) => p !== normalized)
+		: [...current, normalized];
+	await saveRepoFavourites(settings, repoId, next);
 	return next;
 }
 
 /** Drop a path from favourites if present (e.g. after file delete). */
 export async function removeFavouritePath(repoId: string, path: string): Promise<void> {
-	const normalized = path.trim().replace(/^\/+|\/+$/g, '').replace(/\\/g, '/');
+	const normalized = normalizeFavouritePath(path);
 	if (!normalized) return;
 	const settings = await getSettings();
 	const current = settings.favouritesByRepo[repoId] ?? [];
 	if (!current.includes(normalized)) return;
-	const next = current.filter((p) => p !== normalized);
-	const favouritesByRepo = { ...settings.favouritesByRepo };
-	if (next.length === 0) delete favouritesByRepo[repoId];
-	else favouritesByRepo[repoId] = next;
-	await saveSettings({ ...settings, favouritesByRepo });
+	await saveRepoFavourites(
+		settings,
+		repoId,
+		current.filter((p) => p !== normalized)
+	);
 }
 
 export async function clearFavouritesForRepo(repoId: string): Promise<void> {
 	const settings = await getSettings();
 	if (!(repoId in settings.favouritesByRepo)) return;
-	const favouritesByRepo = { ...settings.favouritesByRepo };
-	delete favouritesByRepo[repoId];
-	await saveSettings({ ...settings, favouritesByRepo });
+	await saveRepoFavourites(settings, repoId, []);
 }
 
 /**

@@ -1,5 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { ROOT_SCOPE, isRootScopedPath } from '$lib/display';
 
 export const DATA_DIR = path.resolve('data');
 export const REPOS_DIR = path.join(DATA_DIR, 'repos');
@@ -29,12 +30,7 @@ export function toRepoRelative(repoRoot: string, absolutePath: string): string {
 	return path.relative(repoRoot, absolutePath).split(path.sep).join('/');
 }
 
-/** UI path prefix for markdown files outside the configured content root (e.g. repo README). */
-export const ROOT_SCOPE = '@root';
-
-export function isRootScopedPath(relativePath: string): boolean {
-	return relativePath === ROOT_SCOPE || relativePath.startsWith(`${ROOT_SCOPE}/`);
-}
+export { isRootScopedPath };
 
 export function toRootScopedPath(repoRelativePath: string): string {
 	const cleaned = repoRelativePath.replace(/^\/+|\/+$/g, '').replace(/\\/g, '/');

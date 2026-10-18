@@ -129,6 +129,7 @@
 		<div
 			class="dialog card stack"
 			role="dialog"
+			tabindex="-1"
 			aria-modal="true"
 			aria-labelledby="repo-details-title"
 			onclick={(e) => e.stopPropagation()}
