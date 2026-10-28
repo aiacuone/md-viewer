@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import BackLink from '$lib/components/BackLink.svelte';
+	import BugReport from '$lib/components/BugReport.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 
 	let { data } = $props();
@@ -290,6 +291,10 @@
 			{/if}
 		</div>
 	</form>
+
+	{#if data.canReportBugs}
+		<BugReport />
+	{/if}
 </section>
 
 <style>
