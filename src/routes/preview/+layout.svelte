@@ -37,10 +37,10 @@
   }
 })();<\/script>`;
 
-	// Preview pages are static (no client router), so count.js counts each page load itself.
-	// Counts go to the portfolio's GoatCounter, prefixed with /md-viewer to keep them apart from its pages.
-	const counter = `<script>window.goatcounter = { path: function(){ return '/md-viewer' + location.pathname; } };<\/script>
-<script data-goatcounter="https://stats.portfolio-aiacuone.duckdns.org/count" async src="https://stats.portfolio-aiacuone.duckdns.org/count.js"><\/script>`;
+	// Preview pages are static (no client router), so Umami counts each page load itself.
+	// Counts go to the portfolio's Umami site, prefixed with /md-viewer to keep them apart from its pages.
+	const counter = `<script>window.umamiPrefix = function(type, payload){ if (location.hostname === 'localhost') return; payload.url = '/md-viewer' + payload.url; return payload; };<\/script>
+<script defer src="https://stats-aiacuone.duckdns.org/script.js" data-website-id="86eb39c6-0512-4268-9fe4-9711f48123b0" data-before-send="umamiPrefix"><\/script>`;
 </script>
 
 <div id="preview-toast" class="toast card" hidden>Disabled in the preview.</div>

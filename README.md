@@ -33,4 +33,4 @@ Configure commit author and PAT under **Settings**. Clones are stored in `data/r
 
 ## Analytics
 
-Visits to the public preview (`/preview/...`) are counted by the self-hosted GoatCounter on the portfolio VM, dashboard at https://stats.portfolio-aiacuone.duckdns.org. Paths are reported as `/md-viewer/preview/...` so they stay apart from the portfolio's own pages. The snippet is in `src/routes/preview/+layout.svelte`; the signed-in app is not tracked. GoatCounter sets no cookies and ignores `localhost`.
+Visits to the public preview (`/preview/...`) are counted by the self-hosted Umami on the shared Shtrong VM, dashboard at https://stats-aiacuone.duckdns.org. They go to the portfolio's Umami website with paths reported as `/md-viewer/preview/...` so they stay apart from the portfolio's own pages. The snippet is in `src/routes/preview/+layout.svelte`; the signed-in app is not tracked. Umami sets no cookies and `localhost` is skipped.
