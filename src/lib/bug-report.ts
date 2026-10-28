@@ -1,4 +1,4 @@
-// Browser side of the bug reporter: shrinks the attached photo to fit the server's upload limit, then posts the form.
+// Browser side of the bug and feature reporter: shrinks the attached photo to fit the server's upload limit, then posts the form.
 
 const MAX_SIDE = 1600;
 const TARGET_BYTES = 400 * 1024;
@@ -30,6 +30,6 @@ export async function sendBugReport(form: HTMLFormElement): Promise<string> {
 	else data.delete('screenshot');
 	const res = await fetch('/api/bug-report', { method: 'POST', body: data });
 	const body = await res.json().catch(() => ({}));
-	if (!res.ok) throw new Error(typeof body?.message === 'string' ? body.message : 'The bug report was not sent.');
+	if (!res.ok) throw new Error(typeof body?.message === 'string' ? body.message : 'The report was not sent.');
 	return body.url as string;
 }

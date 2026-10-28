@@ -1,11 +1,12 @@
 import { env } from '$env/dynamic/private';
 
-// Files the owner's bug reports as issues in a private GitHub repo. A screenshot is committed to the
+// Files the owner's bug reports and feature requests as issues in a private GitHub repo. A screenshot is committed to the
 // repo first and linked from the issue, because the issues API cannot take uploads.
 
 export type BugReportConfig = { email: string; token: string; repo: string };
 
 export type BugReport = {
+	kind: 'bug' | 'feature';
 	title: string;
 	description: string;
 	page: string;
@@ -28,17 +29,18 @@ export function canReportBugs(config: BugReportConfig, email: string | null | un
 
 /** Returns the report, or a message saying what is wrong with it. */
 export function readBugReport(form: FormData, userAgent: string): BugReport | string {
+	const kind = form.get('kind') === 'feature' ? 'feature' : 'bug';
 	const title = String(form.get('title') ?? '').trim();
 	const description = String(form.get('description') ?? '').trim();
 	const page = String(form.get('page') ?? '').trim();
 	const file = form.get('screenshot');
 	const screenshot = file instanceof File && file.size > 0 ? file : null;
-	if (!title) return 'Give the bug a title.';
+	if (!title) return 'Give it a title.';
 	if (title.length > 120) return 'Keep the title under 120 characters.';
 	if (description.length > 10_000) return 'The description is too long.';
 	if (screenshot && !EXTENSIONS[screenshot.type]) return 'The screenshot must be a JPEG, PNG, WebP or GIF.';
 	if (screenshot && screenshot.size > MAX_SCREENSHOT) return 'The screenshot is over 1 MB.';
-	return { title, description, page: page.slice(0, 500), userAgent: userAgent.slice(0, 300), screenshot };
+	return { kind, title, description, page: page.slice(0, 500), userAgent: userAgent.slice(0, 300), screenshot };
 }
 
 async function github(config: BugReportConfig, app: string, method: string, path: string, body: unknown) {
@@ -60,11 +62,11 @@ async function failed(res: Response) {
 	return new Error(`GitHub answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }
 
-async function uploadScreenshot(config: BugReportConfig, app: string, file: File) {
+async function uploadScreenshot(config: BugReportConfig, app: string, kind: string, file: File) {
 	const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 	const path = `screenshots/${app}/${stamp}.${EXTENSIONS[file.type]}`;
 	const content = Buffer.from(await file.arrayBuffer()).toString('base64');
-	const res = await github(config, app, 'PUT', `/contents/${path}`, { message: `Add ${app} bug screenshot`, content });
+	const res = await github(config, app, 'PUT', `/contents/${path}`, { message: `Add ${app} ${kind} screenshot`, content });
 	if (!res.ok) throw await failed(res);
 	const data = (await res.json()) as { content: { html_url: string } };
 	return `${data.content.html_url}?raw=true`;
@@ -72,17 +74,18 @@ async function uploadScreenshot(config: BugReportConfig, app: string, file: File
 
 /** Files the report and returns the issue's address. */
 export async function fileBugReport(config: BugReportConfig, app: string, report: BugReport) {
-	const screenshot = report.screenshot ? await uploadScreenshot(config, app, report.screenshot) : null;
+	const screenshot = report.screenshot ? await uploadScreenshot(config, app, report.kind, report.screenshot) : null;
 	const body = [
 		report.description || '_No description._',
 		'',
+		`**Type:** ${report.kind === 'feature' ? 'Feature request' : 'Bug'}`,
 		`**App:** ${app}`,
 		`**Page:** ${report.page || 'not given'}`,
 		`**Browser:** ${report.userAgent || 'unknown'}`,
 		`**Reported:** ${new Date().toISOString()}`,
 		...(screenshot ? ['', `![Screenshot](${screenshot})`] : [])
 	].join('\n');
-	const issue = { title: `[${app}] ${report.title}`, body, labels: ['bug', app] };
+	const issue = { title: `[${app}] ${report.title}`, body, labels: [report.kind === 'feature' ? 'enhancement' : 'bug', app] };
 
 	let res = await github(config, app, 'POST', '/issues', issue);
 	// A missing label is a 422; file the issue without labels rather than lose the report.
