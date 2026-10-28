@@ -43,7 +43,7 @@
 
 <div class="card stack">
 	<h2>Bugs and features</h2>
-	<p class="muted">Report a bug or ask for a feature. Only you can see this. It opens an issue in your private bugs repo on GitHub.</p>
+	<p class="muted">Report a bug or ask for a feature. Only you can see this. It opens an issue in your private feedback repo on GitHub.</p>
 	{#if issueUrl}
 		<p class="muted">Reported. <a href={issueUrl} target="_blank" rel="noopener noreferrer">Open the issue</a></p>
 	{/if}

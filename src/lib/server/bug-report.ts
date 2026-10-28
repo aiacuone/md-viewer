@@ -85,7 +85,8 @@ export async function fileBugReport(config: BugReportConfig, app: string, report
 		`**Reported:** ${new Date().toISOString()}`,
 		...(screenshot ? ['', `![Screenshot](${screenshot})`] : [])
 	].join('\n');
-	const issue = { title: `[${app}] ${report.title}`, body, labels: [report.kind === 'feature' ? 'enhancement' : 'bug', app] };
+	const label = report.kind === 'feature' ? 'Feature' : 'Bug';
+	const issue = { title: `[${app}] ${label}: ${report.title}`, body, labels: [report.kind === 'feature' ? 'enhancement' : 'bug', app] };
 
 	let res = await github(config, app, 'POST', '/issues', issue);
 	// A missing label is a 422; file the issue without labels rather than lose the report.
@@ -99,6 +100,6 @@ export function bugReportConfig(): BugReportConfig {
 	return {
 		email: env.BUG_REPORT_EMAIL ?? '',
 		token: env.BUG_REPORT_TOKEN ?? '',
-		repo: env.BUG_REPORT_REPO || 'aiacuone/bugs'
+		repo: env.BUG_REPORT_REPO || 'aiacuone/feedback'
 	};
 }
