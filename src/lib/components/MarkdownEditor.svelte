@@ -3,8 +3,9 @@
 	import { EditorView, basicSetup } from 'codemirror';
 	import { EditorState } from '@codemirror/state';
 	import { markdown } from '@codemirror/lang-markdown';
-	import { keymap } from '@codemirror/view';
+	import { keymap, type Command } from '@codemirror/view';
 	import { defaultKeymap, historyKeymap } from '@codemirror/commands';
+	import EditorToolbar from '$lib/components/EditorToolbar.svelte';
 
 	let {
 		value = $bindable(''),
@@ -17,6 +18,13 @@
 	let host: HTMLDivElement | undefined = $state();
 	let view: EditorView | null = null;
 	let applyingExternal = false;
+	let focused = $state(false);
+
+	function runCommand(command: Command) {
+		if (!view) return;
+		command(view);
+		view.focus();
+	}
 
 	onMount(() => {
 		if (!host) return;
@@ -66,6 +74,8 @@
 							backgroundColor: '#2a3a52'
 						}
 					}),
+					// Keep the caret clear of the toolbar that sits over the keyboard.
+					EditorView.scrollMargins.of(() => ({ bottom: focused ? 48 : 0 })),
 					EditorView.updateListener.of((update) => {
 						if (update.docChanged && !applyingExternal) {
 							value = update.state.doc.toString();
@@ -96,7 +106,13 @@
 	});
 </script>
 
-<div class="editor" bind:this={host}></div>
+<div
+	class="editor"
+	bind:this={host}
+	onfocusin={() => (focused = true)}
+	onfocusout={() => (focused = false)}
+></div>
+<EditorToolbar visible={focused} onRun={runCommand} />
 
 <style>
 	.editor {
