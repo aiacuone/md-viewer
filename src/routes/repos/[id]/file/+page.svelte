@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy, untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { goto } from '$app/navigation';
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
@@ -15,6 +16,7 @@
 	import { goBack } from '$lib/navigation';
 	import { unifiedDiff } from '$lib/diff';
 	import { renderMarkdown } from '$lib/markdown';
+	import { clearDraft, draftKey, readDraft, writeDraft, type Draft } from '$lib/drafts';
 
 	let { data } = $props();
 
@@ -83,10 +85,89 @@
 		};
 	});
 
+	// Unsaved edits are kept on this device 1s after typing stops, so a
+	// discarded tab or reload doesn't lose them. 'stale' means the file changed
+	// (e.g. a pull) since the draft was made, so it waits for Restore/Discard.
+	let draftNotice = $state<{ kind: 'restored' | 'stale'; draft: Draft } | null>(null);
+	let pendingDraft: { key: string; draft: Draft } | null = null;
+	let draftTimer: ReturnType<typeof setTimeout> | undefined;
+	let loadedKey = '';
+	const currentDraftKey = $derived(draftKey(data.repo.id, data.path));
+
+	function flushDraft() {
+		clearTimeout(draftTimer);
+		if (pendingDraft) writeDraft(pendingDraft.key, pendingDraft.draft);
+		pendingDraft = null;
+	}
+
+	function dropDraft() {
+		clearTimeout(draftTimer);
+		pendingDraft = null;
+		clearDraft(currentDraftKey);
+	}
+
 	$effect(() => {
-		content = data.content;
-		savedContent = data.content;
+		const key = currentDraftKey;
+		const fresh = data.content;
+		untrack(() => {
+			// Same file reloaded unchanged (e.g. after starring): keep the buffer.
+			if (key === loadedKey && fresh === savedContent) return;
+			flushDraft();
+			loadedKey = key;
+			content = fresh;
+			savedContent = fresh;
+			draftNotice = null;
+			const draft = readDraft(key);
+			if (!draft) return;
+			if (draft.content === fresh) {
+				clearDraft(key);
+			} else if (draft.base === fresh) {
+				content = draft.content;
+				draftNotice = { kind: 'restored', draft };
+			} else {
+				draftNotice = { kind: 'stale', draft };
+			}
+		});
 	});
+
+	$effect(() => {
+		const key = currentDraftKey;
+		const next = content;
+		const base = savedContent;
+		untrack(() => {
+			clearTimeout(draftTimer);
+			pendingDraft = null;
+			if (next === base) {
+				// A stale draft is kept until the user restores or discards it.
+				if (draftNotice?.kind !== 'stale') clearDraft(key);
+				if (draftNotice?.kind === 'restored') draftNotice = null;
+				return;
+			}
+			// Editing past a stale draft replaces it.
+			if (draftNotice?.kind === 'stale') draftNotice = null;
+			pendingDraft = { key, draft: { content: next, base, savedAt: Date.now() } };
+			draftTimer = setTimeout(flushDraft, 1000);
+		});
+	});
+
+	onDestroy(flushDraft);
+
+	function restoreDraft() {
+		if (!draftNotice) return;
+		const { draft } = draftNotice;
+		draftNotice = null;
+		content = draft.content;
+	}
+
+	function discardDraft() {
+		draftNotice = null;
+		content = savedContent;
+		dropDraft();
+	}
+
+	function formatDraftTime(ms: number) {
+		return new Date(ms).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+	}
 
 	async function loadSavedDiff() {
 		const res = await fetch(
@@ -153,6 +234,7 @@
 			);
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok) throw new Error(body.message || 'Delete failed');
+			dropDraft();
 			deleteOpen = false;
 			const folder = parentFolder;
 			const q = folder ? `?path=${encodeURIComponent(folder)}` : '';
@@ -211,7 +293,8 @@
 	}
 </script>
 
-<svelte:window onbeforeunload={onBeforeUnload} />
+<svelte:window onbeforeunload={onBeforeUnload} onpagehide={flushDraft} />
+<svelte:document onvisibilitychange={() => document.visibilityState === 'hidden' && flushDraft()} />
 
 <section class="stack file-page">
 	<FileHeader
@@ -245,7 +328,7 @@
 				}}
 			/>
 			<p class="saved-note" aria-live="polite">
-				{#if dirty}Unsaved buffer{:else}Saved to working tree{/if}
+				{#if dirty}Unsaved · draft kept on this device{:else}Saved to working tree{/if}
 				{#if viewMode === 'edit'} · Cmd/Ctrl+S to save{/if}
 			</p>
 		{/snippet}
@@ -253,6 +336,33 @@
 
 	{#if errorMsg}
 		<p class="error">{errorMsg}</p>
+	{/if}
+
+	{#if draftNotice}
+		<div class="card draft-notice" role="status">
+			{#if draftNotice.kind === 'restored'}
+				<p>Restored unsaved edits from {formatDraftTime(draftNotice.draft.savedAt)}.</p>
+				<div class="row">
+					<button type="button" onclick={() => (draftNotice = null)}>Keep</button>
+					<button type="button" class="with-icon" onclick={discardDraft}>
+						<Icon name="undo" />
+						Discard
+					</button>
+				</div>
+			{:else}
+				<p>
+					Unsaved edits from {formatDraftTime(draftNotice.draft.savedAt)} were made before this file
+					last changed. Restoring replaces the current content.
+				</p>
+				<div class="row">
+					<button type="button" class="primary" onclick={restoreDraft}>Restore</button>
+					<button type="button" class="with-icon" onclick={discardDraft}>
+						<Icon name="undo" />
+						Discard
+					</button>
+				</div>
+			{/if}
+		</div>
 	{/if}
 
 	{#if showDiff}
@@ -367,6 +477,15 @@
 	.diff-panel {
 		display: grid;
 		gap: 1rem;
+	}
+
+	.draft-notice {
+		display: grid;
+		gap: 0.75rem;
+	}
+
+	.draft-notice p {
+		margin: 0;
 	}
 
 	.diff-note {
